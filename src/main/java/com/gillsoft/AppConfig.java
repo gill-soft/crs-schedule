@@ -1,12 +1,16 @@
 package com.gillsoft;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Properties;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.sql.DataSource;
 
 import org.apache.tomcat.dbcp.dbcp2.BasicDataSource;
+import org.apache.tomcat.util.http.fileupload.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -26,18 +30,21 @@ import com.jcraft.jsch.Session;
 @PropertySource("classpath:db.properties")
 @EnableTransactionManagement
 @ComponentScans(value = {
-//		@ComponentScan("com.gillsoft.dao"),
 		@ComponentScan("com.gillsoft")
 	})
 public class AppConfig {
 	
-	private static Logger LOGGER = Logger.getLogger(AppConfig.class.getName());
+	private static Logger LOGGER = LoggerFactory.getLogger(AppConfig.class.getName());
 
 	private static final String SHOW_SQL = "hibernate.show_sql";
 	private static final String FORMAT_SQL = "hibernate.format_sql";
 	private static final String HBM2DDL_AUTO = "hibernate.hbm2ddl.auto";
 	private static final String REVISION_ON_COLLECTION_CHANGE = "org.hibernate.envers.revision_on_collection_change";
 	private static final String STORE_DATA_AT_DELETE = "org.hibernate.envers.store_data_at_delete";
+	private static final String NON_CONTEXTUAL_CREATION = "hibernate.jdbc.lob.non_contextual_creation";
+	private static final String DIALECT = "hibernate.dialect";
+	private static final String POSTGRE_SQL9_DIALECT = "org.hibernate.dialect.PostgreSQL9Dialect";
+	private static final String USE_JDBC_METADATA_DEFAULTS = "hibernate.temp.use_jdbc_metadata_defaults";
 	
 	private static final String C3P0_MIN_SIZE = "hibernate.c3p0.min_size";
 	private static final String C3P0_MAX_SIZE = "hibernate.c3p0.max_size";
@@ -88,9 +95,9 @@ public class AppConfig {
 		props.put(HBM2DDL_AUTO, env.getProperty(HBM2DDL_AUTO));
 		props.put(REVISION_ON_COLLECTION_CHANGE, false);
 		props.put(STORE_DATA_AT_DELETE, true);
-		props.put("hibernate.jdbc.lob.non_contextual_creation", "true");
-		props.put("hibernate.dialect", "org.hibernate.dialect.PostgreSQL9Dialect");
-		props.put("hibernate.temp.use_jdbc_metadata_defaults", "false");
+		props.put(NON_CONTEXTUAL_CREATION, true);
+		props.put(DIALECT, POSTGRE_SQL9_DIALECT);
+		props.put(USE_JDBC_METADATA_DEFAULTS, false);
 
 		// Setting C3P0 properties
 		props.put(C3P0_MIN_SIZE, env.getProperty(C3P0_MIN_SIZE));
@@ -119,15 +126,18 @@ public class AppConfig {
 	private void tunnel() {
 		JSch jsch = new JSch();
 		try {
-			jsch.addIdentity(AppConfig.class.getClassLoader().getResource(env.getProperty(SSH_KEY)).getPath());
+			InputStream key = AppConfig.class.getClassLoader().getResourceAsStream(env.getProperty(SSH_KEY));
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			IOUtils.copy(key, out);
+			jsch.addIdentity("wpl", out.toByteArray(), null, null);
 			Session session = jsch.getSession(env.getProperty(SSH_USER),
 					env.getProperty(SSH_HOST), Integer.valueOf(env.getProperty(SSH_PORT)));
 			session.setConfig("StrictHostKeyChecking", "no");
 			session.connect();
 			session.setPortForwardingL(Integer.valueOf(env.getProperty(SSH_LOCAL_PORT)),
 					env.getProperty(SSH_LOCAL_HOST), Integer.valueOf(env.getProperty(SSH_REMOTE_PORT)));
-		} catch (JSchException e) {
-			LOGGER.log(Level.INFO, e.getMessage(), e);
+		} catch (JSchException | IOException e) {
+			LOGGER.info(e.getMessage(), e);
 		}
 	}
 

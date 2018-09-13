@@ -272,6 +272,7 @@ public class Route implements Serializable {
 		scheduleRoute.setStartedAt(getStartedAt());
 		scheduleRoute.setEndedAt(getEndedAt());
 		scheduleRoute.setRegularity(Regularity.getEnum(getRegularity()));
+		scheduleRoute.setRegularityDays(getRegularityDays());
 		scheduleRoute.setBus(getBusCode());
 		scheduleRoute.setTags(getTags());
 		scheduleRoute.setCarrier(getCarrierCode());

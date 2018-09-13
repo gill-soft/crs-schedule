@@ -17,7 +17,6 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.gillsoft.entity.Carrier;
@@ -38,7 +37,6 @@ import com.gillsoft.model.ScheduleRoutePoint;
 import com.gillsoft.model.SegmentSeats;
 
 @RestController
-@RequestMapping("/schedule")
 public class ScheduleController {
 	
 	@Autowired
@@ -143,13 +141,13 @@ public class ScheduleController {
 						&& !resParents.containsKey(routePoint.getLocality().getParent().getId())) {
 					Locality locality = localities.get(routePoint.getLocality().getParent().getId());
 					if (locality != null) {
-						resLocalities.put(routePoint.getLocality().getParent().getId(), locality.create());
+						resParents.put(routePoint.getLocality().getParent().getId(), locality.create());
 					}
 				}
 				if (!resLocalities.containsKey(routePoint.getLocality().getId())) {
 					Point point = points.get(routePoint.getLocality().getId());
 					if (point != null) {
-						resParents.put(routePoint.getLocality().getId(), point.create());
+						resLocalities.put(routePoint.getLocality().getId(), point.create());
 					}
 				}
 				scheduleRoute.getPath().add(routePoint);
@@ -166,6 +164,7 @@ public class ScheduleController {
 					RoutePathTariff tariff = tariffs.get(point.getId() + ";" + destination.getId());
 					if (tariff != null) {
 						ScheduleRoutePoint pricePoint = new ScheduleRoutePoint();
+						pricePoint.setId(destination.getId());
 						pricePoint.setIndex(destination.getIndex());
 						Price price = new Price();
 						price.setAmount(new BigDecimal(String.valueOf(tariff.getValue())));

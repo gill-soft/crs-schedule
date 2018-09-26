@@ -1,14 +1,14 @@
 package com.gillsoft.entity;
 
+import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Set;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
 import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
@@ -20,10 +20,15 @@ import javax.persistence.TemporalType;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gillsoft.model.Organisation;
 import com.gillsoft.model.Regularity;
 import com.gillsoft.model.RouteKind;
 import com.gillsoft.model.RouteType;
 import com.gillsoft.model.ScheduleRoute;
+import com.gillsoft.model.Vehicle;
+import com.gillsoft.util.StringUtil;
 
 @Entity
 @Table(name = "route")
@@ -40,11 +45,9 @@ public class Route implements Serializable {
 	@Column(name = "carrier_code")
 	private String carrierCode;
 	
-	@Enumerated(EnumType.STRING)
-	private RouteType type;
+	private String type;
 	
-	@Enumerated(EnumType.STRING)
-	private RouteKind kind;
+	private String kind;
 	
 	@Column(name = "started_at")
 	@Temporal(TemporalType.DATE)
@@ -59,7 +62,7 @@ public class Route implements Serializable {
 	private String regularity;
 	
 	@Column(name = "regularity_days")
-	private String regularityDays;
+	private String jsonRegularityDays;
 	
 	@Column(name = "insurance_code")
 	private String insuranceCode;
@@ -119,19 +122,19 @@ public class Route implements Serializable {
 		this.carrierCode = carrierCode;
 	}
 
-	public RouteType getType() {
+	public String getType() {
 		return type;
 	}
 
-	public void setType(RouteType type) {
+	public void setType(String type) {
 		this.type = type;
 	}
 
-	public RouteKind getKind() {
+	public String getKind() {
 		return kind;
 	}
 
-	public void setKind(RouteKind kind) {
+	public void setKind(String kind) {
 		this.kind = kind;
 	}
 
@@ -167,12 +170,20 @@ public class Route implements Serializable {
 		this.regularity = regularity;
 	}
 
-	public String getRegularityDays() {
-		return regularityDays;
+	public String getJsonRegularityDays() {
+		return jsonRegularityDays;
+	}
+	
+	public List<Integer> getRegularityDays() {
+		try {
+			return new ObjectMapper().readValue(jsonRegularityDays, new TypeReference<List<Integer>>() {});
+		} catch (IOException e) {
+			return null;
+		}
 	}
 
-	public void setRegularityDays(String regularityDays) {
-		this.regularityDays = regularityDays;
+	public void setJsonRegularityDays(String jsonRegularityDays) {
+		this.jsonRegularityDays = jsonRegularityDays;
 	}
 
 	public String getInsuranceCode() {
@@ -267,17 +278,19 @@ public class Route implements Serializable {
 		ScheduleRoute scheduleRoute = new ScheduleRoute();
 		scheduleRoute.setId(String.valueOf(getId()));
 		scheduleRoute.setNumber(getCode());
-		scheduleRoute.setType(getType());
-		scheduleRoute.setKind(getKind());
+		scheduleRoute.setType(RouteType.valueOf(getType().toUpperCase()));
+		scheduleRoute.setKind(RouteKind.valueOf(getKind().toUpperCase()));
 		scheduleRoute.setStartedAt(getStartedAt());
 		scheduleRoute.setEndedAt(getEndedAt());
-		scheduleRoute.setRegularity(Regularity.getEnum(getRegularity()));
+		scheduleRoute.setRegularity(Regularity.valueOf(getRegularity().replaceAll(" ", "_").toUpperCase()));
 		scheduleRoute.setRegularityDays(getRegularityDays());
-		scheduleRoute.setBus(getBusCode());
-		scheduleRoute.setTags(getTags());
-		scheduleRoute.setCarrier(getCarrierCode());
-		scheduleRoute.setInsurance(getInsuranceCode());
-		scheduleRoute.setPath(new ArrayList<>());
+		scheduleRoute.setVehicle(new Vehicle(StringUtil.md5(getBusCode())));
+		if (getTags() != null) {
+			scheduleRoute.setAdditionals(new HashMap<>());
+			scheduleRoute.getAdditionals().put("tags", getTags());
+		}
+		scheduleRoute.setCarrier(new Organisation(getCarrierCode()));
+		scheduleRoute.setInsurance(new Organisation(getInsuranceCode()));
 		scheduleRoute.setCurrency(getTariffs().iterator().next()
 				.getGrids().iterator().next().getCurrency());
 		return scheduleRoute;

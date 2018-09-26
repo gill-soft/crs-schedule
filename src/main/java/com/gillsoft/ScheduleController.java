@@ -31,10 +31,12 @@ import com.gillsoft.entity.TripPath;
 import com.gillsoft.manager.ScheduleManager;
 import com.gillsoft.model.Organisation;
 import com.gillsoft.model.Price;
-import com.gillsoft.model.Schedule;
 import com.gillsoft.model.ScheduleRoute;
 import com.gillsoft.model.ScheduleRoutePoint;
 import com.gillsoft.model.SegmentSeats;
+import com.gillsoft.model.Vehicle;
+import com.gillsoft.model.response.ScheduleResponse;
+import com.gillsoft.util.StringUtil;
 
 @RestController
 public class ScheduleController {
@@ -98,7 +100,7 @@ public class ScheduleController {
 	}
 	
 	@GetMapping("/schedule")
-	public Schedule getSchedule() {
+	public ScheduleResponse getSchedule() {
 		
 		// выгружаем словари
 		Map<String, Locality> localities = getMappedLocalities();
@@ -106,12 +108,14 @@ public class ScheduleController {
 		Map<String, Carrier> carriers = getMappedCarriers();
 		Map<String, Insurance> insurances = getMappedInsurances();
 		
-		Schedule schedule = new Schedule();
+		ScheduleResponse schedule = new ScheduleResponse();
 		schedule.setId(UUID.randomUUID().toString());
-		schedule.setTime(new Date());
 		
 		Map<String, Organisation> organisations = new HashMap<>();
 		schedule.setOrganisations(organisations);
+		
+		Map<String, Vehicle> vehicles = new HashMap<>();
+		schedule.setVehicles(vehicles);
 
 		Map<String, com.gillsoft.model.Locality> resLocalities = new HashMap<>();
 		schedule.setLocalities(resLocalities);
@@ -128,9 +132,18 @@ public class ScheduleController {
 			addOrganisation(organisations, carriers, null, route.getCarrierCode());
 			addOrganisation(organisations, null, insurances, route.getInsuranceCode());
 			
+			// добавляем транспорт
+			String vehicleId = StringUtil.md5(route.getBusCode());
+			Vehicle vehicle = vehicles.get(vehicleId);
+			if (vehicle == null) {
+				vehicle = new Vehicle();
+				vehicle.setModel(route.getBusCode());
+				vehicles.put(vehicleId, vehicle);
+			}
 			// создаем маршрут
 			ScheduleRoute scheduleRoute = route.create();
 			schedule.getRoutes().add(scheduleRoute);
+			List<ScheduleRoutePoint> path = new ArrayList<>();
 			
 			// добавляем остановки на саршруте
 			for (PathPoint pathPoint : route.getPath()) {
@@ -150,8 +163,10 @@ public class ScheduleController {
 						resLocalities.put(routePoint.getLocality().getId(), point.create());
 					}
 				}
-				scheduleRoute.getPath().add(routePoint);
+				path.add(routePoint);
 			}
+			scheduleRoute.setPath(path);
+			
 			// делаем тарифную сетку
 			Map<String, RoutePathTariff> tariffs = route.getTariffs().iterator().next()
 					.getGrids().iterator().next()

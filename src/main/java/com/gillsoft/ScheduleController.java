@@ -247,6 +247,36 @@ public class ScheduleController {
 		return seats;
 	}
 	
+	@GetMapping("/seats_by_trip/{date}")
+	public Map<String, Integer> getSeatsByTrip(@Validated @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") Date date) {
+		List<Trip> trips = manager.getPathByTrip(date);
+		Map<String, Integer> seats = new HashMap<>();
+		for (Trip trip : trips) {
+			for (int i = 0; i < trip.getPath().size() - 1; i++) {
+				TripPath from = trip.getPath().get(i);
+				if (from.getDeparture().getTime() > date.getTime()) {
+					break;
+				}
+				Set<String> fromSeats = getEnabledSeats(from.getSeats());
+				for (int j = i + 1; j < trip.getPath().size(); j++) {
+					TripPath to = trip.getPath().get(j);
+					fromSeats.retainAll(getEnabledSeats(to.getSeats()));
+					Set<String> fromToSeats = new HashSet<>();
+					fromToSeats.addAll(fromSeats);
+					
+					String key = from.getGeoPointId() + ":" + to.getGeoPointId();
+					Integer count = seats.get(key);
+					if (count == null) {
+						count = 0;
+					}
+					count += fromToSeats.size();
+					seats.put(key, count);
+				}
+			}
+		}
+		return seats;
+	}
+	
 	private Set<String> getEnabledSeats(Map<String, String> seats) {
 		return seats.entrySet().stream()
 				.filter(seat -> "enable".equals(seat.getValue()))

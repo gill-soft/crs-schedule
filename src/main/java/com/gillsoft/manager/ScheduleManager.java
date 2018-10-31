@@ -110,5 +110,18 @@ public class ScheduleManager {
 				Trip.class).setParameter("curr", date).setFetchSize(1000)
 				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).getResultList();
 	}
+	
+	@SuppressWarnings("deprecation")
+	@Transactional(readOnly = true)
+	public List<Trip> getPathByTrip(Date date) {
+		return sessionFactory.getCurrentSession().createQuery(
+				"from Trip as t "
+				+ "join fetch t.path as tp "
+				+ "where t.available = true "
+				+ "and t.execution = :curr "
+				+ "and tp.jsonSeats is not null",
+				Trip.class).setParameter("curr", date).setFetchSize(1000)
+				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).getResultList();
+	}
 
 }

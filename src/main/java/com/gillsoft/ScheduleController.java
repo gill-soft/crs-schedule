@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -248,29 +249,71 @@ public class ScheduleController {
 	}
 	
 	@GetMapping("/seats_by_trip/{date}")
-	public Map<String, Integer> getSeatsByTrip(@Validated @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") Date date) {
+	public Map<Integer, Map<String, Integer>> getSeatsByTrip(@Validated @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") Date date) {
 		List<Trip> trips = manager.getPathByTrip(date);
-		Map<String, Integer> seats = new HashMap<>();
+		
+		// рейс -> сегмент -> количество мест
+		Map<Integer, Map<String, Integer>> seats = new HashMap<>();
 		for (Trip trip : trips) {
+			
+			// сегмент -> количество мест
+			Map<String, Integer> tripSeats = seats.get(trip.getRouteId());
+			if (tripSeats == null) {
+				tripSeats = new HashMap<>();
+				seats.put(trip.getRouteId(), tripSeats);
+			}
+			// место -> список сегментов
+			Map<String, List<int[]>> seatSegments = new HashMap<>();
 			for (int i = 0; i < trip.getPath().size() - 1; i++) {
 				TripPath from = trip.getPath().get(i);
-				if (from.getDeparture().getTime() > date.getTime()) {
-					break;
-				}
 				Set<String> fromSeats = getEnabledSeats(from.getSeats());
-				for (int j = i + 1; j < trip.getPath().size(); j++) {
-					TripPath to = trip.getPath().get(j);
-					fromSeats.retainAll(getEnabledSeats(to.getSeats()));
-					Set<String> fromToSeats = new HashSet<>();
-					fromToSeats.addAll(fromSeats);
-					
-					String key = from.getGeoPointId() + ":" + to.getGeoPointId();
-					Integer count = seats.get(key);
+				
+				// создаем места с сегментами
+				for (String seat : fromSeats) {
+					TripPath to = trip.getPath().get(i + 1);
+					List<int[]> segments = seatSegments.get(seat);
+					if (segments == null) {
+						segments = new ArrayList<>();
+						seatSegments.put(seat, segments);
+					}
+					segments.add(new int[] { from.getGeoPointId(), to.getGeoPointId() });
+				}
+			}
+			// соединяем сегменты
+			Map<String, List<String>> seatStrSegments = new HashMap<>();
+			for (Entry<String, List<int[]>> entry : seatSegments.entrySet()) {
+				List<String> segments = new ArrayList<>();
+				for (int[] segment : entry.getValue()) {
+					boolean finded = false;
+					for (int i = 0; i < segments.size(); i++) {
+						String strSegment = segments.get(i);
+						if (strSegment.startsWith(String.valueOf(segment[1]))) {
+							segments.set(i, segment[0] + ":" + strSegment);
+							finded = true;
+							break;
+						}
+						if (strSegment.endsWith(String.valueOf(segment[0]))) {
+							segments.set(i, strSegment + ":" + segment[1]);
+							finded = true;
+							break;
+						}
+					}
+					if (!finded) {
+						segments.add(segment[0] + ":" + segment[1]);
+					}
+				}
+				seatStrSegments.put(entry.getKey(), segments);
+			}
+			// подсчитываем места на сегментах рейса
+			for (List<String> segments : seatStrSegments.values()) {
+				for (String segment : segments) {
+					String[] path = segment.split(":");
+					String key = path[0] + ":" + path[path.length - 1];
+					Integer count = tripSeats.get(key);
 					if (count == null) {
 						count = 0;
 					}
-					count += fromToSeats.size();
-					seats.put(key, count);
+					tripSeats.put(key, ++count);
 				}
 			}
 		}

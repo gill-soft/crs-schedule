@@ -37,7 +37,7 @@ public class Trip implements Serializable {
 	@JoinColumn(name = "trip_id")
 	@OrderBy("index")
 	private List<TripPath> path;
-
+	
 	public int getId() {
 		return id;
 	}

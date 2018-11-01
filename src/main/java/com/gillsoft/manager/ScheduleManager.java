@@ -92,8 +92,11 @@ public class ScheduleManager {
 	@Transactional(readOnly = true)
 	public List<Trip> getAvailableTrips() {
 		return sessionFactory.getCurrentSession().createQuery(
-				"from Trip as t where t.available = true "
-				+ "and t.execution >= :curr",
+				"select t from Trip as t "
+				+ "join Route as r with r.id = t.routeId "
+				+ "where t.available = true "
+				+ "and t.execution >= :curr "
+				+ "and r.available = true",
 				Trip.class).setParameter("curr", new Date()).getResultList();
 	}
 	
@@ -101,9 +104,11 @@ public class ScheduleManager {
 	@Transactional(readOnly = true)
 	public List<Trip> getPath(Date date) {
 		return sessionFactory.getCurrentSession().createQuery(
-				"from Trip as t "
+				"select t from Trip as t "
 				+ "join fetch t.path as tp "
+				+ "join Route as r with r.id = t.routeId "
 				+ "where t.available = true "
+				+ "and r.available = true "
 				+ "and t.execution <= :curr "
 				+ "and tp.departure >= :curr "
 				+ "and tp.jsonSeats is not null",
@@ -115,9 +120,11 @@ public class ScheduleManager {
 	@Transactional(readOnly = true)
 	public List<Trip> getPathByTrip(Date date) {
 		return sessionFactory.getCurrentSession().createQuery(
-				"from Trip as t "
+				"select t from Trip as t "
 				+ "join fetch t.path as tp "
+				+ "join Route as r with r.id = t.routeId "
 				+ "where t.available = true "
+				+ "and r.available = true "
 				+ "and t.execution = :curr "
 				+ "and tp.jsonSeats is not null",
 				Trip.class).setParameter("curr", date).setFetchSize(1000)

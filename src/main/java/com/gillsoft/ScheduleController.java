@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.apache.logging.log4j.core.util.datetime.FastDateFormat;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
@@ -41,6 +42,8 @@ import com.gillsoft.util.StringUtil;
 
 @RestController
 public class ScheduleController {
+	
+	public final static FastDateFormat dateFormat = FastDateFormat.getInstance("yyyy-MM-dd");
 	
 	@Autowired
 	private ScheduleManager manager;
@@ -214,10 +217,10 @@ public class ScheduleController {
 	}
 	
 	@GetMapping("/trips")
-	public Map<Integer, List<Date>> getAvailableTrips() {
+	public Map<Integer, List<String>> getAvailableTrips() {
 		return manager.getAvailableTrips().stream().collect(
 				Collectors.groupingBy(Trip::getRouteId,
-						Collectors.mapping(Trip::getExecution, Collectors.toList())));
+						Collectors.mapping(trip -> String.join(":", dateFormat.format(trip.getExecution()), String.valueOf(trip.getId())), Collectors.toList())));
 	}
 	
 	@GetMapping("/seats/{date}")

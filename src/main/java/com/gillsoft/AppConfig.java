@@ -20,6 +20,8 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.env.Environment;
 import org.springframework.orm.hibernate5.HibernateTransactionManager;
 import org.springframework.orm.hibernate5.LocalSessionFactoryBean;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 import com.jcraft.jsch.JSch;
@@ -29,6 +31,7 @@ import com.jcraft.jsch.Session;
 @Configuration
 @PropertySource("classpath:db.properties")
 @EnableTransactionManagement
+@EnableScheduling
 @ComponentScans(value = {
 		@ComponentScan("com.gillsoft")
 	})
@@ -81,9 +84,8 @@ public class AppConfig {
 
 	@Bean
 	public LocalSessionFactoryBean getSessionFactory() {
-		if (isUseSsh()) {
-			tunnel();
-		}
+		tunnel();
+		
 		LocalSessionFactoryBean factoryBean = new LocalSessionFactoryBean();
 		factoryBean.setDataSource(getDataSource());
 
@@ -123,7 +125,22 @@ public class AppConfig {
 		return Boolean.valueOf(env.getProperty(SSH_USE));
 	}
 	
-	private void tunnel() {
+	private static Session session;
+	
+	@Scheduled(initialDelay = 15000, fixedDelay = 5000)
+	public void tunnel() {
+		if (isUseSsh()) {
+			if (session == null) {
+				session = newSession();
+			}
+			if (!session.isConnected()) {
+				session.disconnect();
+				session = newSession();
+			}
+		}
+	}
+	
+	private Session newSession() {
 		JSch jsch = new JSch();
 		try {
 			InputStream key = AppConfig.class.getClassLoader().getResourceAsStream(env.getProperty(SSH_KEY));
@@ -136,9 +153,11 @@ public class AppConfig {
 			session.connect();
 			session.setPortForwardingL(Integer.valueOf(env.getProperty(SSH_LOCAL_PORT)),
 					env.getProperty(SSH_LOCAL_HOST), Integer.valueOf(env.getProperty(SSH_REMOTE_PORT)));
+			return session;
 		} catch (JSchException | IOException e) {
 			LOGGER.info(e.getMessage(), e);
 		}
+		return null;
 	}
 
 }

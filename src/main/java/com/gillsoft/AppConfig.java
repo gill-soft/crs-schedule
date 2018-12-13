@@ -59,6 +59,7 @@ public class AppConfig {
 	private static final String SSH_HOST = "ssh.host";
 	private static final String SSH_PORT = "ssh.port";
 	private static final String SSH_USER = "ssh.user";
+	private static final String SSH_PASSWORD = "ssh.password";
 	private static final String SSH_KEY = "ssh.private_key";
 	private static final String SSH_LOCAL_HOST = "ssh.local.host";
 	private static final String SSH_LOCAL_PORT = "ssh.local.port";
@@ -146,7 +147,7 @@ public class AppConfig {
 			InputStream key = AppConfig.class.getClassLoader().getResourceAsStream(env.getProperty(SSH_KEY));
 			ByteArrayOutputStream out = new ByteArrayOutputStream();
 			IOUtils.copy(key, out);
-			jsch.addIdentity("wpl", out.toByteArray(), null, null);
+			jsch.addIdentity("wpl", out.toByteArray(), null, getPassword());
 			Session session = jsch.getSession(env.getProperty(SSH_USER),
 					env.getProperty(SSH_HOST), Integer.valueOf(env.getProperty(SSH_PORT)));
 			session.setConfig("StrictHostKeyChecking", "no");
@@ -158,6 +159,16 @@ public class AppConfig {
 			LOGGER.info(e.getMessage(), e);
 		}
 		return null;
+	}
+	
+	private byte[] getPassword() {
+		String pass = env.getProperty(SSH_PASSWORD);
+		if (pass == null
+				|| pass.isEmpty()) {
+			return null;
+		} else {
+			return pass.getBytes();
+		}
 	}
 
 }

@@ -40,6 +40,8 @@ public class Tariff implements Serializable {
 	@Temporal(TemporalType.DATE)
 	private Date endedAt;
 	
+	private String kind;
+	
 	@Enumerated(EnumType.STRING)
 	private TariffType type;
 	
@@ -77,6 +79,14 @@ public class Tariff implements Serializable {
 
 	public void setEndedAt(Date endedAt) {
 		this.endedAt = endedAt;
+	}
+
+	public String getKind() {
+		return kind;
+	}
+
+	public void setKind(String kind) {
+		this.kind = kind;
 	}
 
 	public TariffType getType() {

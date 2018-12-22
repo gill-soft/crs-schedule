@@ -9,6 +9,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -27,7 +28,9 @@ import com.gillsoft.entity.Locality;
 import com.gillsoft.entity.PathPoint;
 import com.gillsoft.entity.Point;
 import com.gillsoft.entity.Route;
+import com.gillsoft.entity.RouteBlock;
 import com.gillsoft.entity.RoutePathTariff;
+import com.gillsoft.entity.Tariff;
 import com.gillsoft.entity.Trip;
 import com.gillsoft.entity.TripPath;
 import com.gillsoft.manager.ScheduleManager;
@@ -85,6 +88,16 @@ public class ScheduleController {
 		return tariffs;
 	}
 	
+	@GetMapping("/blocks")
+	public List<RouteBlock> getRouteBlocks() {
+		return manager.getRouteBlocks();
+	}
+	
+	private Map<String, List<RouteBlock>> getMappedRouteBlocks() {
+		return manager.getRouteBlocks().stream().collect(Collectors.groupingBy(v -> String.valueOf(v.getRouteId()),
+				Collectors.mapping(v -> v, Collectors.toList())));
+	}
+	
 	@GetMapping("/carriers")
 	public List<Carrier> getCarriers() {
 		return manager.getCarriers();
@@ -111,6 +124,7 @@ public class ScheduleController {
 		Map<String, Point> points = getMappedPoints();
 		Map<String, Carrier> carriers = getMappedCarriers();
 		Map<String, Insurance> insurances = getMappedInsurances();
+		Map<String, List<RouteBlock>> blocks = getMappedRouteBlocks();
 		
 		ScheduleResponse schedule = new ScheduleResponse();
 		schedule.setId(UUID.randomUUID().toString());
@@ -172,31 +186,91 @@ public class ScheduleController {
 			scheduleRoute.setPath(path);
 			
 			// делаем тарифную сетку
-			Map<String, RoutePathTariff> tariffs = route.getTariffs().iterator().next()
+			Map<String, RoutePathTariff> tariffs = getCurrTariff(route.getTariffs())
 					.getGrids().iterator().next()
 					.getValues().stream().collect(
 							Collectors.toMap(value -> value.getRouteFromId() + ";" + value.getRouteToId(), value -> value));
 			for (int i = 0; i < scheduleRoute.getPath().size(); i++) {
 				ScheduleRoutePoint point = (ScheduleRoutePoint) scheduleRoute.getPath().get(i);
-				for (int j = i + 1; j < scheduleRoute.getPath().size(); j++) {
-					ScheduleRoutePoint destination = (ScheduleRoutePoint) scheduleRoute.getPath().get(j);
-					RoutePathTariff tariff = tariffs.get(point.getId() + ";" + destination.getId());
-					if (tariff != null) {
-						ScheduleRoutePoint pricePoint = new ScheduleRoutePoint();
-						pricePoint.setId(destination.getId());
-						pricePoint.setIndex(destination.getIndex());
-						Price price = new Price();
-						price.setAmount(new BigDecimal(String.valueOf(tariff.getValue())));
-						pricePoint.setPrice(price);
-						if (point.getDestinations() == null) {
-							point.setDestinations(new ArrayList<>());
+				List<RouteBlock> reouteBlocks = blocks.get(scheduleRoute.getId());
+				
+				// проверяем можно ли продавать из это пункта
+				if (!isDisabledArrivals(point, reouteBlocks)) {
+					for (int j = i + 1; j < scheduleRoute.getPath().size(); j++) {
+						ScheduleRoutePoint destination = (ScheduleRoutePoint) scheduleRoute.getPath().get(j);
+						
+						// прверяем можно ли продавать в этот пункт
+						if (!isDisabledArrival(point, destination, reouteBlocks)) {
+							RoutePathTariff tariff = tariffs.get(point.getId() + ";" + destination.getId());
+							if (tariff != null) {
+								ScheduleRoutePoint pricePoint = new ScheduleRoutePoint();
+								pricePoint.setId(destination.getId());
+								pricePoint.setIndex(destination.getIndex());
+								Price price = new Price();
+								price.setAmount(new BigDecimal(String.valueOf(tariff.getValue())));
+								pricePoint.setPrice(price);
+								if (point.getDestinations() == null) {
+									point.setDestinations(new ArrayList<>());
+								}
+								point.getDestinations().add(pricePoint);
+							}
 						}
-						point.getDestinations().add(pricePoint);
 					}
 				}
 			}
 		}
 		return schedule;
+	}
+	
+	private Tariff getCurrTariff(Set<Tariff> tariffs) {
+		long curr = System.currentTimeMillis();
+		if (tariffs.stream().anyMatch(t -> t.getStartedAt() != null && t.getEndedAt() != null)) {
+			return tariffs.stream().filter(t -> t.getStartedAt() != null && t.getStartedAt().getTime() <= curr
+					&& t.getEndedAt() != null && t.getEndedAt().getTime() >= curr).findFirst().get();
+		} else {
+			return tariffs.iterator().next();
+		}
+	}
+	
+	private boolean isDisabledArrival(ScheduleRoutePoint point, ScheduleRoutePoint destination, List<RouteBlock> blocks) {
+		if (blocks == null) {
+			return false;
+		}
+		long curr = System.currentTimeMillis();
+		int pointId = Integer.parseInt(point.getId());
+		int destId = Integer.parseInt(destination.getId());
+		
+		// если блокировка по отправлению пуста или ид отправления в нее попадает, то заблокировано прибытие
+		return blocks.stream().anyMatch(routeBlock ->
+			((routeBlock.getDepartFrom() == null && routeBlock.getDepartTo() == null)
+				|| ((routeBlock.getDepartFrom() == null || routeBlock.getDepartFrom() >= pointId)
+						&& (routeBlock.getDepartTo() == null || routeBlock.getDepartTo() <= pointId)))
+				&& ((routeBlock.getArriveFrom() == null || routeBlock.getArriveFrom() >= destId)
+						&& (routeBlock.getArriveTo() == null || routeBlock.getArriveTo() <= destId))
+				&& checkDate(curr, routeBlock));
+	}
+	
+	private boolean isDisabledArrivals(ScheduleRoutePoint point, List<RouteBlock> blocks) {
+		if (blocks == null) {
+			return false;
+		}
+		long curr = System.currentTimeMillis();
+		int pointId = Integer.parseInt(point.getId());
+		
+		// если есть блокировка по отправлению и нет блокировки по прибытию,
+		// то значит запрещено продавать из пункта
+		return blocks.stream().anyMatch(routeBlock ->
+				((routeBlock.getDepartFrom() == null || routeBlock.getDepartFrom() >= pointId)
+					&& (routeBlock.getDepartTo() == null || routeBlock.getDepartTo() <= pointId))
+					&& routeBlock.getArriveFrom() == null
+					&& routeBlock.getArriveTo() == null
+					&& checkDate(curr, routeBlock));
+	}
+	
+	private boolean checkDate(long curr, RouteBlock routeBlock) {
+		return (routeBlock.getStartedAt() == null || routeBlock.getStartedAt().getTime() <= curr)
+				&& (routeBlock.getEndedAt() == null || routeBlock.getEndedAt().getTime() >= curr)
+				&& Objects.equals(routeBlock.getRegularity(), "every day");
 	}
 	
 	private void addOrganisation(Map<String, Organisation> orgaisations, Map<String, Carrier> carriers,

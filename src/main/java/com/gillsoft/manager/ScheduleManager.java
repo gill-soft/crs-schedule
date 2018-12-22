@@ -14,6 +14,7 @@ import com.gillsoft.entity.Insurance;
 import com.gillsoft.entity.Locality;
 import com.gillsoft.entity.Point;
 import com.gillsoft.entity.Route;
+import com.gillsoft.entity.RouteBlock;
 import com.gillsoft.entity.Trip;
 
 @Repository
@@ -129,6 +130,12 @@ public class ScheduleManager {
 				+ "and tp.jsonSeats is not null",
 				Trip.class).setParameter("curr", date).setFetchSize(1000)
 				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).getResultList();
+	}
+	
+	@Transactional(readOnly = true)
+	public List<RouteBlock> getRouteBlocks()  {
+		return sessionFactory.getCurrentSession().createQuery(
+				"from RouteBlock", RouteBlock.class).getResultList();
 	}
 
 }

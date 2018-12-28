@@ -33,6 +33,10 @@ public class Trip implements Serializable {
 	
 	private boolean available;
 	
+	@Column(name = "deleted_at")
+	@Temporal(TemporalType.TIMESTAMP)
+	private Date deleted;
+	
 	@OneToMany(fetch = FetchType.LAZY)
 	@JoinColumn(name = "trip_id")
 	@OrderBy("index")
@@ -68,6 +72,14 @@ public class Trip implements Serializable {
 
 	public void setAvailable(boolean available) {
 		this.available = available;
+	}
+
+	public Date getDeleted() {
+		return deleted;
+	}
+
+	public void setDeleted(Date deleted) {
+		this.deleted = deleted;
 	}
 
 	public List<TripPath> getPath() {

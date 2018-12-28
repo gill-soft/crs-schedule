@@ -96,6 +96,7 @@ public class ScheduleManager {
 				"select t from Trip as t "
 				+ "join Route as r with r.id = t.routeId "
 				+ "where t.available = true "
+				+ "and t.deleted is null "
 				+ "and t.execution >= :curr "
 				+ "and r.available = true",
 				Trip.class).setParameter("curr", new Date()).getResultList();
@@ -109,6 +110,7 @@ public class ScheduleManager {
 				+ "join fetch t.path as tp "
 				+ "join Route as r with r.id = t.routeId "
 				+ "where t.available = true "
+				+ "and t.deleted is null "
 				+ "and r.available = true "
 				+ "and t.execution <= :curr "
 				+ "and tp.departure >= :curr "
@@ -125,6 +127,7 @@ public class ScheduleManager {
 				+ "join fetch t.path as tp "
 				+ "join Route as r with r.id = t.routeId "
 				+ "where t.available = true "
+				+ "and t.deleted is null "
 				+ "and r.available = true "
 				+ "and t.execution = :curr "
 				+ "and tp.jsonSeats is not null",

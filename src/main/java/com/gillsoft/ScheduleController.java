@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -186,7 +187,8 @@ public class ScheduleController {
 			scheduleRoute.setPath(path);
 			
 			// делаем тарифную сетку
-			Map<String, RoutePathTariff> tariffs = getCurrTariff(route.getTariffs())
+			Tariff currTariff = getCurrTariff(route.getTariffs());
+			Map<String, RoutePathTariff> tariffs = currTariff == null ? new HashMap<>(0) : currTariff
 					.getGrids().iterator().next()
 					.getValues().stream().collect(
 							Collectors.toMap(value -> value.getRouteFromId() + ";" + value.getRouteToId(), value -> value));
@@ -225,8 +227,9 @@ public class ScheduleController {
 	private Tariff getCurrTariff(Set<Tariff> tariffs) {
 		long curr = System.currentTimeMillis();
 		if (tariffs.stream().anyMatch(t -> t.getStartedAt() != null && t.getEndedAt() != null)) {
-			return tariffs.stream().filter(t -> t.getStartedAt() != null && t.getStartedAt().getTime() <= curr
-					&& t.getEndedAt() != null && t.getEndedAt().getTime() >= curr).findFirst().get();
+			Optional<Tariff> optional = tariffs.stream().filter(t -> t.getStartedAt() != null && t.getStartedAt().getTime() <= curr
+					&& t.getEndedAt() != null && t.getEndedAt().getTime() >= curr).findFirst();
+			return optional == null ? null : optional.get();
 		} else {
 			return tariffs.iterator().next();
 		}

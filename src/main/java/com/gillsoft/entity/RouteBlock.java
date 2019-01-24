@@ -9,6 +9,7 @@ import javax.persistence.Id;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
+import javax.persistence.Transient;
 
 @Entity
 @Table(name = "route_path_blocked")
@@ -46,6 +47,18 @@ public class RouteBlock implements Serializable {
 	
 	@Column(name = "regularity_days", nullable = true)
 	private String jsonRegularityDays;
+	
+	@Transient
+	private Integer departFromIndex;
+	
+	@Transient
+	private Integer departToIndex;
+	
+	@Transient
+	private Integer arriveFromIndex;
+	
+	@Transient
+	private Integer arriveToIndex;
 
 	public int getId() {
 		return id;
@@ -125,6 +138,38 @@ public class RouteBlock implements Serializable {
 
 	public void setJsonRegularityDays(String jsonRegularityDays) {
 		this.jsonRegularityDays = jsonRegularityDays;
+	}
+
+	public Integer getDepartFromIndex() {
+		return departFromIndex;
+	}
+
+	public void setDepartFromIndex(Integer departFromIndex) {
+		this.departFromIndex = departFromIndex;
+	}
+
+	public Integer getDepartToIndex() {
+		return departToIndex;
+	}
+
+	public void setDepartToIndex(Integer departToIndex) {
+		this.departToIndex = departToIndex;
+	}
+
+	public Integer getArriveFromIndex() {
+		return arriveFromIndex;
+	}
+
+	public void setArriveFromIndex(Integer arriveFromIndex) {
+		this.arriveFromIndex = arriveFromIndex;
+	}
+
+	public Integer getArriveToIndex() {
+		return arriveToIndex;
+	}
+
+	public void setArriveToIndex(Integer arriveToIndex) {
+		this.arriveToIndex = arriveToIndex;
 	}
 
 }

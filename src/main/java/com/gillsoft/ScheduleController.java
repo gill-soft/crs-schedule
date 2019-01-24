@@ -37,6 +37,7 @@ import com.gillsoft.entity.TripPath;
 import com.gillsoft.manager.ScheduleManager;
 import com.gillsoft.model.Organisation;
 import com.gillsoft.model.Price;
+import com.gillsoft.model.RoutePoint;
 import com.gillsoft.model.ScheduleRoute;
 import com.gillsoft.model.ScheduleRoutePoint;
 import com.gillsoft.model.SegmentSeats;
@@ -192,9 +193,10 @@ public class ScheduleController {
 					.getGrids().iterator().next()
 					.getValues().stream().collect(
 							Collectors.toMap(value -> value.getRouteFromId() + ";" + value.getRouteToId(), value -> value));
+			List<RouteBlock> reouteBlocks = blocks.get(scheduleRoute.getId());
+			setIndexToBlocks(scheduleRoute.getPath(), reouteBlocks);
 			for (int i = 0; i < scheduleRoute.getPath().size(); i++) {
 				ScheduleRoutePoint point = (ScheduleRoutePoint) scheduleRoute.getPath().get(i);
-				List<RouteBlock> reouteBlocks = blocks.get(scheduleRoute.getId());
 				
 				// проверяем можно ли продавать из это пункта
 				if (!isDisabledArrivals(point, reouteBlocks)) {
@@ -224,12 +226,40 @@ public class ScheduleController {
 		return schedule;
 	}
 	
+	private void setIndexToBlocks(List<? extends RoutePoint> path, List<RouteBlock> blocks) {
+		if (blocks == null) {
+			return;
+		}
+		for (RouteBlock block : blocks) {
+			Optional<? extends RoutePoint> point = path.stream().filter(
+					p -> Objects.equals(String.valueOf(block.getDepartFrom()), p.getId())).findFirst();
+			if (point.isPresent()) {
+				block.setDepartFromIndex(((ScheduleRoutePoint) point.get()).getIndex());
+			}
+			point = path.stream().filter(
+					p -> Objects.equals(String.valueOf(block.getDepartTo()), p.getId())).findFirst();
+			if (point.isPresent()) {
+				block.setDepartToIndex(((ScheduleRoutePoint) point.get()).getIndex());
+			}
+			point = path.stream().filter(
+					p -> Objects.equals(String.valueOf(block.getArriveFrom()), p.getId())).findFirst();
+			if (point.isPresent()) {
+				block.setArriveFromIndex(((ScheduleRoutePoint) point.get()).getIndex());
+			}
+			point = path.stream().filter(
+					p -> Objects.equals(String.valueOf(block.getArriveTo()), p.getId())).findFirst();
+			if (point.isPresent()) {
+				block.setArriveToIndex(((ScheduleRoutePoint) point.get()).getIndex());
+			}
+		}
+	}
+	
 	private Tariff getCurrTariff(Set<Tariff> tariffs) {
 		long curr = System.currentTimeMillis();
 		if (tariffs.stream().anyMatch(t -> t.getStartedAt() != null && t.getEndedAt() != null)) {
 			Optional<Tariff> optional = tariffs.stream().filter(t -> t.getStartedAt() != null && t.getStartedAt().getTime() <= curr
 					&& t.getEndedAt() != null && t.getEndedAt().getTime() >= curr).findFirst();
-			return optional == null ? null : optional.get();
+			return optional.isPresent() ? optional.get() : null;
 		} else {
 			return tariffs.iterator().next();
 		}
@@ -240,16 +270,16 @@ public class ScheduleController {
 			return false;
 		}
 		long curr = System.currentTimeMillis();
-		int pointId = Integer.parseInt(point.getId());
-		int destId = Integer.parseInt(destination.getId());
+		int pointIndex = point.getIndex();
+		int destIndex = destination.getIndex();
 		
 		// если блокировка по отправлению пуста или ид отправления в нее попадает, то заблокировано прибытие
 		return blocks.stream().anyMatch(routeBlock ->
-			((routeBlock.getDepartFrom() == null && routeBlock.getDepartTo() == null)
-				|| ((routeBlock.getDepartFrom() == null || routeBlock.getDepartFrom() >= pointId)
-						&& (routeBlock.getDepartTo() == null || routeBlock.getDepartTo() <= pointId)))
-				&& ((routeBlock.getArriveFrom() == null || routeBlock.getArriveFrom() >= destId)
-						&& (routeBlock.getArriveTo() == null || routeBlock.getArriveTo() <= destId))
+			((routeBlock.getDepartFromIndex() == null && routeBlock.getDepartToIndex() == null)
+				|| ((routeBlock.getDepartFromIndex() == null || routeBlock.getDepartFromIndex() >= pointIndex)
+						&& (routeBlock.getDepartToIndex() == null || routeBlock.getDepartToIndex() <= pointIndex)))
+				&& ((routeBlock.getArriveFromIndex() == null || routeBlock.getArriveFromIndex() >= destIndex)
+						&& (routeBlock.getArriveToIndex() == null || routeBlock.getArriveToIndex() <= destIndex))
 				&& checkDate(curr, routeBlock));
 	}
 	
@@ -258,15 +288,15 @@ public class ScheduleController {
 			return false;
 		}
 		long curr = System.currentTimeMillis();
-		int pointId = Integer.parseInt(point.getId());
+		int pointIndex = point.getIndex();
 		
 		// если есть блокировка по отправлению и нет блокировки по прибытию,
 		// то значит запрещено продавать из пункта
 		return blocks.stream().anyMatch(routeBlock ->
-				((routeBlock.getDepartFrom() == null || routeBlock.getDepartFrom() >= pointId)
-					&& (routeBlock.getDepartTo() == null || routeBlock.getDepartTo() <= pointId))
-					&& routeBlock.getArriveFrom() == null
-					&& routeBlock.getArriveTo() == null
+				((routeBlock.getDepartFromIndex() == null || routeBlock.getDepartFromIndex() >= pointIndex)
+					&& (routeBlock.getDepartToIndex() == null || routeBlock.getDepartToIndex() <= pointIndex))
+					&& routeBlock.getArriveFromIndex() == null
+					&& routeBlock.getArriveToIndex() == null
 					&& checkDate(curr, routeBlock));
 	}
 	

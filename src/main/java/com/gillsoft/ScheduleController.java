@@ -276,10 +276,10 @@ public class ScheduleController {
 		// если блокировка по отправлению пуста или ид отправления в нее попадает, то заблокировано прибытие
 		return blocks.stream().anyMatch(routeBlock ->
 			((routeBlock.getDepartFromIndex() == null && routeBlock.getDepartToIndex() == null)
-				|| ((routeBlock.getDepartFromIndex() == null || routeBlock.getDepartFromIndex() >= pointIndex)
-						&& (routeBlock.getDepartToIndex() == null || routeBlock.getDepartToIndex() <= pointIndex)))
-				&& ((routeBlock.getArriveFromIndex() == null || routeBlock.getArriveFromIndex() >= destIndex)
-						&& (routeBlock.getArriveToIndex() == null || routeBlock.getArriveToIndex() <= destIndex))
+				|| ((routeBlock.getDepartFromIndex() == null || routeBlock.getDepartFromIndex() <= pointIndex)
+						&& (routeBlock.getDepartToIndex() == null || routeBlock.getDepartToIndex() >= pointIndex)))
+				&& ((routeBlock.getArriveFromIndex() == null || routeBlock.getArriveFromIndex() <= destIndex)
+						&& (routeBlock.getArriveToIndex() == null || routeBlock.getArriveToIndex() >= destIndex))
 				&& checkDate(curr, routeBlock));
 	}
 	
@@ -293,8 +293,8 @@ public class ScheduleController {
 		// если есть блокировка по отправлению и нет блокировки по прибытию,
 		// то значит запрещено продавать из пункта
 		return blocks.stream().anyMatch(routeBlock ->
-				((routeBlock.getDepartFromIndex() == null || routeBlock.getDepartFromIndex() >= pointIndex)
-					&& (routeBlock.getDepartToIndex() == null || routeBlock.getDepartToIndex() <= pointIndex))
+				((routeBlock.getDepartFromIndex() == null || routeBlock.getDepartFromIndex() <= pointIndex)
+					&& (routeBlock.getDepartToIndex() == null || routeBlock.getDepartToIndex() >= pointIndex))
 					&& routeBlock.getArriveFromIndex() == null
 					&& routeBlock.getArriveToIndex() == null
 					&& checkDate(curr, routeBlock));

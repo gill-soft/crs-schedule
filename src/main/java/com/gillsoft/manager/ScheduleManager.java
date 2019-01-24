@@ -49,7 +49,7 @@ public class ScheduleManager {
 		List<Route> routes = sessionFactory.getCurrentSession().createQuery(
 				"from Route r "
 				+ "join fetch r.path as rp "
-				+ "where (:curr between coalesce(r.startedAt, :curr) and coalesce(r.endedAt, :curr)) "
+				+ "where (r.endedAt is null or :curr <= r.endedAt) "
 				+ "and r.available = true",
 				Route.class).setParameter("curr", new Date()).setFetchSize(1000)
 				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).getResultList();
@@ -64,11 +64,11 @@ public class ScheduleManager {
 				+ "join fetch r.tariffs as rt "
 				+ "join fetch rt.grids as rtg "
 				+ "join fetch rtg.values as rtgv "
-				+ "where (:curr between coalesce(r.startedAt, :curr) and coalesce(r.endedAt, :curr)) "
+				+ "where ((r.endedAt is null or :curr <= r.endedAt) "
 				+ "and r.available = true "
 				+ "and rt.type = 'base' "
 				+ "and rt.status = 1 "
-				+ "and (:curr between coalesce(rt.startedAt, :curr) and coalesce(rt.endedAt, :curr))",
+				+ "and (rt.endedAt is null or :curr <= rt.endedAt))",
 				Route.class).setParameter("curr", new Date()).setFetchSize(1000)
 				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).getResultList();
 		return routes;

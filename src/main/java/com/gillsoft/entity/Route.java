@@ -84,6 +84,9 @@ public class Route implements Serializable {
 	@Column(name = "reservation_close_before")
 	private int reservationCloseBefore;
 	
+	@Column(name = "deleted_at")
+	private Date deletedAt;
+	
 	@Column(name = "bus_number")
 	private String busNumber;
 	
@@ -240,6 +243,14 @@ public class Route implements Serializable {
 
 	public void setReservationCloseBefore(int reservationCloseBefore) {
 		this.reservationCloseBefore = reservationCloseBefore;
+	}
+
+	public Date getDeletedAt() {
+		return deletedAt;
+	}
+
+	public void setDeletedAt(Date deletedAt) {
+		this.deletedAt = deletedAt;
 	}
 
 	public String getBusNumber() {

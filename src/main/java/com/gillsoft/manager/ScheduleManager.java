@@ -48,27 +48,17 @@ public class ScheduleManager {
 	public List<Route> getRoutes() {
 		List<Route> routes = sessionFactory.getCurrentSession().createQuery(
 				"from Route r "
-				+ "join fetch r.path as rp "
-				+ "where (r.endedAt is null or :curr <= r.endedAt) "
-				+ "and r.available = true",
-				Route.class).setParameter("curr", new Date()).setFetchSize(1000)
-				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).getResultList();
-		return routes;
-	}
-	
-	@SuppressWarnings("deprecation")
-	@Transactional(readOnly = true)
-	public List<Route> getTariffs() {
-		List<Route> routes = sessionFactory.getCurrentSession().createQuery(
-				"from Route r "
 				+ "join fetch r.tariffs as rt "
 				+ "join fetch rt.grids as rtg "
 				+ "join fetch rtg.values as rtgv "
-				+ "where ((r.endedAt is null or :curr <= r.endedAt) "
+				+ "join fetch r.path as rp "
+				+ "where (r.endedAt is null or :curr <= r.endedAt) "
 				+ "and r.available = true "
+				+ "and r.deletedAt is null "
 				+ "and rt.type = 'base' "
 				+ "and rt.status = 1 "
-				+ "and (rt.endedAt is null or :curr <= rt.endedAt))",
+				+ "and rt.kind = 'default'"
+				+ "and (rt.endedAt is null or :curr <= rt.endedAt)",
 				Route.class).setParameter("curr", new Date()).setFetchSize(1000)
 				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).getResultList();
 		return routes;
@@ -95,10 +85,18 @@ public class ScheduleManager {
 		return sessionFactory.getCurrentSession().createQuery(
 				"select t from Trip as t "
 				+ "join Route as r with r.id = t.routeId "
+				+ "join r.tariffs as rt "
+				+ "join rt.grids as rtg "
 				+ "where t.available = true "
-				+ "and t.deleted is null "
+				+ "and t.deletedAt is null "
 				+ "and t.execution >= :curr "
-				+ "and r.available = true",
+				+ "and (r.endedAt is null or :curr <= r.endedAt) "
+				+ "and r.deletedAt is null "
+				+ "and r.available = true "
+				+ "and rt.type = 'base' "
+				+ "and rt.status = 1 "
+				+ "and rt.kind = 'default'"
+				+ "and (rt.endedAt is null or :curr <= rt.endedAt)",
 				Trip.class).setParameter("curr", new Date()).getResultList();
 	}
 	
@@ -109,12 +107,20 @@ public class ScheduleManager {
 				"select t from Trip as t "
 				+ "join fetch t.path as tp "
 				+ "join Route as r with r.id = t.routeId "
+				+ "join r.tariffs as rt "
+				+ "join rt.grids as rtg "
+				+ "and r.deletedAt is null "
 				+ "where t.available = true "
-				+ "and t.deleted is null "
+				+ "and t.deletedAt is null "
+				+ "and (r.endedAt is null or :curr <= r.endedAt) "
 				+ "and r.available = true "
 				+ "and t.execution <= :curr "
 				+ "and tp.departure >= :curr "
-				+ "and tp.jsonSeats is not null",
+				+ "and tp.jsonSeats is not null "
+				+ "and rt.type = 'base' "
+				+ "and rt.status = 1 "
+				+ "and rt.kind = 'default'"
+				+ "and (rt.endedAt is null or :curr <= rt.endedAt)",
 				Trip.class).setParameter("curr", date).setFetchSize(1000)
 				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).getResultList();
 	}
@@ -126,11 +132,18 @@ public class ScheduleManager {
 				"select t from Trip as t "
 				+ "join fetch t.path as tp "
 				+ "join Route as r with r.id = t.routeId "
+				+ "join r.tariffs as rt "
+				+ "join rt.grids as rtg "
 				+ "where t.available = true "
-				+ "and t.deleted is null "
+				+ "and t.deletedAt is null "
+				+ "and (r.endedAt is null or :curr <= r.endedAt) "
 				+ "and r.available = true "
 				+ "and t.execution = :curr "
-				+ "and tp.jsonSeats is not null",
+				+ "and tp.jsonSeats is not null "
+				+ "and rt.type = 'base' "
+				+ "and rt.status = 1 "
+				+ "and rt.kind = 'default'"
+				+ "and (rt.endedAt is null or :curr <= rt.endedAt)",
 				Trip.class).setParameter("curr", date).setFetchSize(1000)
 				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).getResultList();
 	}

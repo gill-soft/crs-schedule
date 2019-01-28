@@ -35,7 +35,7 @@ public class Trip implements Serializable {
 	
 	@Column(name = "deleted_at")
 	@Temporal(TemporalType.TIMESTAMP)
-	private Date deleted;
+	private Date deletedAt;
 	
 	@OneToMany(fetch = FetchType.LAZY)
 	@JoinColumn(name = "trip_id")
@@ -74,12 +74,12 @@ public class Trip implements Serializable {
 		this.available = available;
 	}
 
-	public Date getDeleted() {
-		return deleted;
+	public Date getDeletedAt() {
+		return deletedAt;
 	}
 
-	public void setDeleted(Date deleted) {
-		this.deleted = deleted;
+	public void setDeletedAt(Date deletedAt) {
+		this.deletedAt = deletedAt;
 	}
 
 	public List<TripPath> getPath() {

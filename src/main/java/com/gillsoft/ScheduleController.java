@@ -73,21 +73,7 @@ public class ScheduleController {
 	
 	@GetMapping("/routes")
 	public List<Route> getRoutes() {
-		List<Route> routes = manager.getRoutes();
-		List<Route> tariffs = manager.getTariffs();
-		Map<Integer, Route> routeMap = routes.stream().collect(Collectors.toMap(Route::getId, route -> route));
-		for (Iterator<Route> iterator = tariffs.iterator(); iterator.hasNext();) {
-			Route route = iterator.next();
-			Route path = routeMap.get(route.getId());
-			if (path == null) {
-				iterator.remove();
-			} else if (path.getPath().size() <= 1) {
-				iterator.remove();
-			} else {
-				route.setPath(path.getPath());
-			}
-		}
-		return tariffs;
+		return manager.getRoutes();
 	}
 	
 	@GetMapping("/blocks")
@@ -145,8 +131,8 @@ public class ScheduleController {
 		
 		schedule.setRoutes(new ArrayList<>());
 		List<Route> routes = getRoutes();
-		
-		for (Route route : routes) {
+		for (Iterator<Route> iterator = routes.iterator(); iterator.hasNext();) {
+			Route route = iterator.next();
 			
 			// добавляем организации
 			addOrganisation(organisations, carriers, null, route.getCarrierCode());
@@ -188,6 +174,7 @@ public class ScheduleController {
 			scheduleRoute.setPath(path);
 			
 			// делаем тарифную сетку
+			boolean isPresentPrices = false;
 			Tariff currTariff = getCurrTariff(route.getTariffs());
 			Map<String, RoutePathTariff> tariffs = currTariff == null ? new HashMap<>(0) : currTariff
 					.getGrids().iterator().next()
@@ -217,10 +204,14 @@ public class ScheduleController {
 									point.setDestinations(new ArrayList<>());
 								}
 								point.getDestinations().add(pricePoint);
+								isPresentPrices = true;
 							}
 						}
 					}
 				}
+			}
+			if (!isPresentPrices) {
+				iterator.remove();
 			}
 		}
 		return schedule;
@@ -397,12 +388,12 @@ public class ScheduleController {
 					boolean finded = false;
 					for (int i = 0; i < segments.size(); i++) {
 						String strSegment = segments.get(i);
-						if (strSegment.startsWith(String.valueOf(segment[1]))) {
+						if (strSegment.startsWith(String.valueOf(segment[1]) + ":")) {
 							segments.set(i, segment[0] + ":" + strSegment);
 							finded = true;
 							break;
 						}
-						if (strSegment.endsWith(String.valueOf(segment[0]))) {
+						if (strSegment.endsWith(":" + String.valueOf(segment[0]))) {
 							segments.set(i, strSegment + ":" + segment[1]);
 							finded = true;
 							break;
@@ -427,6 +418,7 @@ public class ScheduleController {
 				}
 			}
 		}
+		seats.entrySet().removeIf(entry -> entry.getValue().isEmpty());
 		return seats;
 	}
 	

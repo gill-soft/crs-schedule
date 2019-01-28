@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -131,8 +130,7 @@ public class ScheduleController {
 		
 		schedule.setRoutes(new ArrayList<>());
 		List<Route> routes = getRoutes();
-		for (Iterator<Route> iterator = routes.iterator(); iterator.hasNext();) {
-			Route route = iterator.next();
+		for (Route route : routes) {
 			
 			// добавляем организации
 			addOrganisation(organisations, carriers, null, route.getCarrierCode());
@@ -148,7 +146,6 @@ public class ScheduleController {
 			}
 			// создаем маршрут
 			ScheduleRoute scheduleRoute = route.create();
-			schedule.getRoutes().add(scheduleRoute);
 			List<ScheduleRoutePoint> path = new ArrayList<>();
 			
 			// добавляем остановки на саршруте
@@ -210,8 +207,8 @@ public class ScheduleController {
 					}
 				}
 			}
-			if (!isPresentPrices) {
-				iterator.remove();
+			if (isPresentPrices) {
+				schedule.getRoutes().add(scheduleRoute);
 			}
 		}
 		return schedule;

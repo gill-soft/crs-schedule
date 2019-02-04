@@ -34,6 +34,9 @@ public class TripPath implements Serializable {
 	@Column(name = "geo_locality_id")
 	private int geoLocalityId;
 	
+	@Column(name = "route_path_id")
+	private int routePathId;
+	
 	@Column(name = "depart_date")
 	@Temporal(TemporalType.DATE)
 	private Date departure;
@@ -80,6 +83,14 @@ public class TripPath implements Serializable {
 		} catch (IOException e) {
 			return null;
 		}
+	}
+
+	public int getRoutePathId() {
+		return routePathId;
+	}
+
+	public void setRoutePathId(int routePathId) {
+		this.routePathId = routePathId;
 	}
 
 	public Date getDeparture() {

@@ -24,6 +24,9 @@ public class PathPoint implements Serializable {
 
 	@Id
 	private int id;
+	
+	@Column(name = "route_id")
+	private int routeId;
 
 	private short index;
 	
@@ -57,6 +60,14 @@ public class PathPoint implements Serializable {
 
 	public void setId(int id) {
 		this.id = id;
+	}
+
+	public int getRouteId() {
+		return routeId;
+	}
+
+	public void setRouteId(int routeId) {
+		this.routeId = routeId;
 	}
 
 	public short getIndex() {

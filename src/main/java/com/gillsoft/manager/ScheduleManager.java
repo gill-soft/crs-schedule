@@ -2,6 +2,7 @@ package com.gillsoft.manager;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 import org.hibernate.Criteria;
 import org.hibernate.SessionFactory;
@@ -12,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.gillsoft.entity.Carrier;
 import com.gillsoft.entity.Insurance;
 import com.gillsoft.entity.Locality;
+import com.gillsoft.entity.PathPoint;
 import com.gillsoft.entity.Point;
 import com.gillsoft.entity.Route;
 import com.gillsoft.entity.RouteBlock;
@@ -57,7 +59,7 @@ public class ScheduleManager {
 				+ "and r.deletedAt is null "
 				+ "and rt.type = 'base' "
 				+ "and rt.status = 1 "
-				+ "and rt.kind = 'default'"
+				+ "and rt.kind = 'default' "
 				+ "and (rt.endedAt is null or :curr <= rt.endedAt)",
 				Route.class).setParameter("curr", new Date()).setFetchSize(1000)
 				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).getResultList();
@@ -95,9 +97,17 @@ public class ScheduleManager {
 				+ "and r.available = true "
 				+ "and rt.type = 'base' "
 				+ "and rt.status = 1 "
-				+ "and rt.kind = 'default'"
+				+ "and rt.kind = 'default' "
 				+ "and (rt.endedAt is null or :curr <= rt.endedAt)",
-				Trip.class).setParameter("curr", new Date()).getResultList();
+				Trip.class).setParameter("curr", new Date()).setFetchSize(1000).getResultList();
+	}
+	
+	@Transactional(readOnly = true)
+	public List<PathPoint> getRoutePath(Set<Integer> ids) {
+		return sessionFactory.getCurrentSession().createQuery(
+				"select pp from PathPoint as pp "
+				+ "where pp.routeId in :ids",
+				PathPoint.class).setParameter("ids", ids).setFetchSize(1000).getResultList();
 	}
 	
 	@SuppressWarnings("deprecation")
@@ -119,7 +129,7 @@ public class ScheduleManager {
 				+ "and tp.jsonSeats is not null "
 				+ "and rt.type = 'base' "
 				+ "and rt.status = 1 "
-				+ "and rt.kind = 'default'"
+				+ "and rt.kind = 'default' "
 				+ "and (rt.endedAt is null or :curr <= rt.endedAt)",
 				Trip.class).setParameter("curr", date).setFetchSize(1000)
 				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).getResultList();
@@ -142,7 +152,7 @@ public class ScheduleManager {
 				+ "and tp.jsonSeats is not null "
 				+ "and rt.type = 'base' "
 				+ "and rt.status = 1 "
-				+ "and rt.kind = 'default'"
+				+ "and rt.kind = 'default' "
 				+ "and (rt.endedAt is null or :curr <= rt.endedAt)",
 				Trip.class).setParameter("curr", date).setFetchSize(1000)
 				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).getResultList();

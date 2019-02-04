@@ -2,9 +2,11 @@ package com.gillsoft;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -178,17 +180,17 @@ public class ScheduleController {
 					.getValues().stream().collect(
 							Collectors.toMap(value -> value.getRouteFromId() + ";" + value.getRouteToId(), value -> value));
 			List<RouteBlock> reouteBlocks = blocks.get(scheduleRoute.getId());
-			setIndexToBlocks(scheduleRoute.getPath(), reouteBlocks);
+			setIndexToBlocks(getPathMap(scheduleRoute.getPath()), reouteBlocks);
 			for (int i = 0; i < scheduleRoute.getPath().size(); i++) {
 				ScheduleRoutePoint point = (ScheduleRoutePoint) scheduleRoute.getPath().get(i);
 				
 				// проверяем можно ли продавать из это пункта
-				if (!isDisabledArrivals(point, reouteBlocks)) {
+				if (!isDisabledArrivals(point.getIndex(), reouteBlocks)) {
 					for (int j = i + 1; j < scheduleRoute.getPath().size(); j++) {
 						ScheduleRoutePoint destination = (ScheduleRoutePoint) scheduleRoute.getPath().get(j);
 						
 						// прверяем можно ли продавать в этот пункт
-						if (!isDisabledArrival(point, destination, reouteBlocks)) {
+						if (!isDisabledArrival(point.getIndex(), destination.getIndex(), reouteBlocks)) {
 							RoutePathTariff tariff = tariffs.get(point.getId() + ";" + destination.getId());
 							if (tariff != null) {
 								ScheduleRoutePoint pricePoint = new ScheduleRoutePoint();
@@ -214,30 +216,41 @@ public class ScheduleController {
 		return schedule;
 	}
 	
-	private void setIndexToBlocks(List<? extends RoutePoint> path, List<RouteBlock> blocks) {
+	private Map<String, Integer> getPathMap(List<? extends RoutePoint> path) {
+		return path.stream().collect(Collectors.toMap(RoutePoint::getId, p -> ((ScheduleRoutePoint) p).getIndex()));
+	}
+	
+	private void setIndexToBlocks(Map<String, Integer> path, List<RouteBlock> blocks) {
 		if (blocks == null) {
 			return;
 		}
 		for (RouteBlock block : blocks) {
-			Optional<? extends RoutePoint> point = path.stream().filter(
-					p -> Objects.equals(String.valueOf(block.getDepartFrom()), p.getId())).findFirst();
-			if (point.isPresent()) {
-				block.setDepartFromIndex(((ScheduleRoutePoint) point.get()).getIndex());
+			
+			// устанавливаем индексы блокировки отправления
+			if (path.containsKey(String.valueOf(block.getDepartFrom()))) {
+				block.setDepartFromIndex(path.get(String.valueOf(block.getDepartFrom())));
 			}
-			point = path.stream().filter(
-					p -> Objects.equals(String.valueOf(block.getDepartTo()), p.getId())).findFirst();
-			if (point.isPresent()) {
-				block.setDepartToIndex(((ScheduleRoutePoint) point.get()).getIndex());
+			if (path.containsKey(String.valueOf(block.getDepartTo()))) {
+				block.setDepartToIndex(path.get(String.valueOf(block.getDepartTo())));
 			}
-			point = path.stream().filter(
-					p -> Objects.equals(String.valueOf(block.getArriveFrom()), p.getId())).findFirst();
-			if (point.isPresent()) {
-				block.setArriveFromIndex(((ScheduleRoutePoint) point.get()).getIndex());
+			if (block.getDepartFromIndex() == null) {
+				block.setDepartFromIndex(block.getDepartToIndex());
 			}
-			point = path.stream().filter(
-					p -> Objects.equals(String.valueOf(block.getArriveTo()), p.getId())).findFirst();
-			if (point.isPresent()) {
-				block.setArriveToIndex(((ScheduleRoutePoint) point.get()).getIndex());
+			if (block.getDepartToIndex() == null) {
+				block.setDepartToIndex(block.getDepartFromIndex());
+			}
+			// устанавливаем индексы блокировки прибытия
+			if (path.containsKey(String.valueOf(block.getArriveFrom()))) {
+				block.setArriveFromIndex(path.get(String.valueOf(block.getArriveFrom())));
+			}
+			if (path.containsKey(String.valueOf(block.getArriveTo()))) {
+				block.setArriveToIndex(path.get(String.valueOf(block.getArriveTo())));
+			}
+			if (block.getArriveFromIndex() == null) {
+				block.setArriveFromIndex(block.getArriveToIndex());
+			}
+			if (block.getArriveToIndex() == null) {
+				block.setArriveToIndex(block.getArriveFromIndex());
 			}
 		}
 	}
@@ -253,13 +266,11 @@ public class ScheduleController {
 		}
 	}
 	
-	private boolean isDisabledArrival(ScheduleRoutePoint point, ScheduleRoutePoint destination, List<RouteBlock> blocks) {
+	private boolean isDisabledArrival(int pointIndex, int destIndex, List<RouteBlock> blocks) {
 		if (blocks == null) {
 			return false;
 		}
 		long curr = System.currentTimeMillis();
-		int pointIndex = point.getIndex();
-		int destIndex = destination.getIndex();
 		
 		// если блокировка по отправлению пуста или ид отправления в нее попадает, то заблокировано прибытие
 		return blocks.stream().anyMatch(routeBlock ->
@@ -271,12 +282,11 @@ public class ScheduleController {
 				&& checkDate(curr, routeBlock));
 	}
 	
-	private boolean isDisabledArrivals(ScheduleRoutePoint point, List<RouteBlock> blocks) {
+	private boolean isDisabledArrivals(int pointIndex, List<RouteBlock> blocks) {
 		if (blocks == null) {
 			return false;
 		}
 		long curr = System.currentTimeMillis();
-		int pointIndex = point.getIndex();
 		
 		// если есть блокировка по отправлению и нет блокировки по прибытию,
 		// то значит запрещено продавать из пункта
@@ -313,9 +323,47 @@ public class ScheduleController {
 	
 	@GetMapping("/trips")
 	public Map<Integer, List<String>> getAvailableTrips() {
-		return manager.getAvailableTrips().stream().collect(
+		Map<String, List<RouteBlock>> blocks = getMappedRouteBlocks();
+		List<Trip> trips = manager.getAvailableTrips();
+		
+		// добавляем маршруты к рейсам
+		Set<Integer> ids = trips.stream().map(Trip::getRouteId).collect(Collectors.toSet());
+		List<PathPoint> routePaths = manager.getRoutePath(ids);
+		Map<Integer, List<PathPoint>> pathMap = routePaths.stream().collect(
+				Collectors.groupingBy(PathPoint::getRouteId, Collectors.toList()));
+		
+		// удаляем заблокированные рейсы
+		for (Iterator<Trip> iterator = trips.iterator(); iterator.hasNext();) {
+			Trip trip = iterator.next();
+			
+			// проверяем блокировку рейса
+			List<RouteBlock> reouteBlocks = blocks.get(String.valueOf(trip.getRouteId()));
+			setIndexToBlocks(getRoutePathMap(pathMap.get(trip.getRouteId())), reouteBlocks);
+			if (isAllRouteBlocked(pathMap.get(trip.getRouteId()), reouteBlocks)) {
+				iterator.remove();
+			}
+		}
+		return trips.stream().collect(
 				Collectors.groupingBy(Trip::getRouteId,
 						Collectors.mapping(trip -> String.join(":", dateFormat.format(trip.getExecution()), String.valueOf(trip.getId())), Collectors.toList())));
+	}
+	
+	private Map<String, Integer> getRoutePathMap(List<PathPoint> path) {
+		return path.stream().collect(Collectors.toMap(p -> String.valueOf(p.getId()), p -> (int) p.getIndex()));
+	}
+	
+	private boolean isAllRouteBlocked(List<PathPoint> routePath, List<RouteBlock> reouteBlocks) {
+		Collections.sort(routePath, (r1, r2) -> r1.getIndex() > r2.getIndex() ? 1 : -1);
+		for (int i = 0; i < routePath.size(); i++) {
+			if (!isDisabledArrivals(routePath.get(i).getIndex(), reouteBlocks)) {
+				for (int j = i + 1; j < routePath.size(); j++) {
+					if (!isDisabledArrival(routePath.get(i).getIndex(), routePath.get(j).getIndex(), reouteBlocks)) {
+						return false;
+					}
+				}
+			}
+		}
+		return true;
 	}
 	
 	@GetMapping("/seats/{date}")
@@ -346,14 +394,25 @@ public class ScheduleController {
 		return seats;
 	}
 	
+	private Map<String, Integer> getTripPathMap(List<TripPath> path) {
+		return path.stream().collect(Collectors.toMap(p -> String.valueOf(p.getRoutePathId()), p -> (int) p.getIndex()));
+	}
+	
 	@GetMapping("/seats_by_trip/{date}")
 	public Map<Integer, Map<String, Integer>> getSeatsByTrip(@Validated @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") Date date) {
+		Map<String, List<RouteBlock>> blocks = getMappedRouteBlocks();
 		List<Trip> trips = manager.getPathByTrip(date);
 		
 		// рейс -> сегмент -> количество мест
 		Map<Integer, Map<String, Integer>> seats = new HashMap<>();
 		for (Trip trip : trips) {
 			
+			// проверяем блокировку рейса
+			List<RouteBlock> reouteBlocks = blocks.get(String.valueOf(trip.getRouteId()));
+			setIndexToBlocks(getTripPathMap(trip.getPath()), reouteBlocks);
+			if (isAllBlocked(trip.getPath(), reouteBlocks)) {
+				continue;
+			}
 			// сегмент -> количество мест
 			Map<String, Integer> tripSeats = seats.get(trip.getRouteId());
 			if (tripSeats == null) {
@@ -417,6 +476,19 @@ public class ScheduleController {
 		}
 		seats.entrySet().removeIf(entry -> entry.getValue().isEmpty());
 		return seats;
+	}
+	
+	private boolean isAllBlocked(List<TripPath> tripPath, List<RouteBlock> reouteBlocks) {
+		for (int i = 0; i < tripPath.size(); i++) {
+			if (!isDisabledArrivals(tripPath.get(i).getIndex(), reouteBlocks)) {
+				for (int j = i + 1; j < tripPath.size(); j++) {
+					if (!isDisabledArrival(tripPath.get(i).getIndex(), tripPath.get(j).getIndex(), reouteBlocks)) {
+						return false;
+					}
+				}
+			}
+		}
+		return true;
 	}
 	
 	private Set<String> getEnabledSeats(Map<String, String> seats) {

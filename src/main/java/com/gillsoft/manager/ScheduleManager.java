@@ -60,7 +60,8 @@ public class ScheduleManager {
 				+ "and rt.type = 'base' "
 				+ "and rt.status = 1 "
 				+ "and rt.kind = 'default' "
-				+ "and (rt.endedAt is null or :curr <= rt.endedAt)",
+				+ "and (rt.endedAt is null or :curr <= rt.endedAt) "
+				+ "and rtg.currency = 'UAH'",
 				Route.class).setParameter("curr", new Date()).setFetchSize(1000)
 				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).getResultList();
 		return routes;
@@ -98,7 +99,8 @@ public class ScheduleManager {
 				+ "and rt.type = 'base' "
 				+ "and rt.status = 1 "
 				+ "and rt.kind = 'default' "
-				+ "and (rt.endedAt is null or :curr <= rt.endedAt)",
+				+ "and (rt.endedAt is null or :curr <= rt.endedAt) "
+				+ "and rtg.currency = 'UAH'",
 				Trip.class).setParameter("curr", new Date()).setFetchSize(1000).getResultList();
 	}
 	
@@ -130,7 +132,8 @@ public class ScheduleManager {
 				+ "and rt.type = 'base' "
 				+ "and rt.status = 1 "
 				+ "and rt.kind = 'default' "
-				+ "and (rt.endedAt is null or :curr <= rt.endedAt)",
+				+ "and (rt.endedAt is null or :curr <= rt.endedAt) "
+				+ "and rtg.currency = 'UAH'",
 				Trip.class).setParameter("curr", date).setFetchSize(1000)
 				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).getResultList();
 	}
@@ -153,7 +156,8 @@ public class ScheduleManager {
 				+ "and rt.type = 'base' "
 				+ "and rt.status = 1 "
 				+ "and rt.kind = 'default' "
-				+ "and (rt.endedAt is null or :curr <= rt.endedAt)",
+				+ "and (rt.endedAt is null or :curr <= rt.endedAt) "
+				+ "and rtg.currency = 'UAH'",
 				Trip.class).setParameter("curr", date).setFetchSize(1000)
 				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).getResultList();
 	}

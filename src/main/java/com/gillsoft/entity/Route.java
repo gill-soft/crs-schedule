@@ -78,6 +78,9 @@ public class Route implements Serializable {
 	
 	private String seats;
 	
+	@Column(name = "is_test")
+	private boolean test;
+	
 	@Column(name = "sale_close_before")
 	private int saleCloseBefore;
 	
@@ -227,6 +230,14 @@ public class Route implements Serializable {
 
 	public void setSeats(String seats) {
 		this.seats = seats;
+	}
+
+	public boolean isTest() {
+		return test;
+	}
+
+	public void setTest(boolean test) {
+		this.test = test;
 	}
 
 	public int getSaleCloseBefore() {

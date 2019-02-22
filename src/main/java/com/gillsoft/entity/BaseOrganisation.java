@@ -9,6 +9,8 @@ import javax.persistence.JoinColumn;
 import javax.persistence.MappedSuperclass;
 import javax.persistence.OneToOne;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 @MappedSuperclass
 public class BaseOrganisation implements Serializable {
 	
@@ -21,6 +23,7 @@ public class BaseOrganisation implements Serializable {
 	
 	@OneToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "organization_id")
+	@JsonIgnore
 	private Organisation organisation;
 
 	public int getId() {

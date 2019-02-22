@@ -27,6 +27,9 @@ public class Trip implements Serializable {
 	@Column(name = "route_id")
 	private int routeId;
 	
+	@Column(name = "carrier_code")
+	private String carrierCode;
+	
 	@Column(name = "execution_date")
 	@Temporal(TemporalType.DATE)
 	private Date execution;
@@ -56,6 +59,14 @@ public class Trip implements Serializable {
 
 	public void setRouteId(int routeId) {
 		this.routeId = routeId;
+	}
+
+	public String getCarrierCode() {
+		return carrierCode;
+	}
+
+	public void setCarrierCode(String carrierCode) {
+		this.carrierCode = carrierCode;
 	}
 
 	public Date getExecution() {

@@ -18,18 +18,23 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.core.util.datetime.FastDateFormat;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.gillsoft.entity.AgentCarrier;
 import com.gillsoft.entity.Carrier;
 import com.gillsoft.entity.Insurance;
 import com.gillsoft.entity.Locality;
 import com.gillsoft.entity.PathPoint;
 import com.gillsoft.entity.Point;
 import com.gillsoft.entity.Route;
+import com.gillsoft.entity.RouteAgentBlock;
 import com.gillsoft.entity.RouteBlock;
 import com.gillsoft.entity.RoutePathTariff;
 import com.gillsoft.entity.Tariff;
@@ -47,13 +52,36 @@ import com.gillsoft.model.response.ScheduleResponse;
 import com.gillsoft.util.StringUtil;
 
 @RestController
+@PropertySource("classpath:db.properties")
 public class ScheduleController {
 	
 	public final static FastDateFormat dateFormat = FastDateFormat.getInstance("yyyy-MM-dd");
 	
 	@Autowired
 	private ScheduleManager manager;
-
+	
+	@Value("${user.default.login}")
+	private String login;
+	
+	@Value("${user.default.password}")
+	private String password;
+	
+	private String getLogin(String login) {
+		if (login != null
+				&& !login.isEmpty()) {
+			return login;
+		}
+		return this.login;
+	}
+	
+	private String getPassword(String password) {
+		if (password != null
+				&& !password.isEmpty()) {
+			return password;
+		}
+		return this.password;
+	}
+	
 	@GetMapping("/localities")
 	public List<Locality> getLocalities() {
 		return manager.getLocalities();
@@ -87,6 +115,26 @@ public class ScheduleController {
 				Collectors.mapping(v -> v, Collectors.toList())));
 	}
 	
+	@GetMapping("/agent_blocks")
+	public List<RouteAgentBlock> getRouteAgentBlocks(@RequestParam(required = false) String login, @RequestParam(required = false) String password) {
+		return manager.getRouteAgentBlocks(getLogin(login), getPassword(password));
+	}
+	
+	private Set<Integer> getBlockedRouteIds(String login, String password) {
+		return manager.getRouteAgentBlocks(getLogin(login), getPassword(password))
+				.stream().map(RouteAgentBlock::getRouteId).collect(Collectors.toSet());
+	}
+	
+	@GetMapping("/agent_carriers")
+	public List<AgentCarrier> getAgentCarriers(@RequestParam(required = false) String login, @RequestParam(required = false) String password) {
+		return manager.getAgentCarriers(getLogin(login), getPassword(password));
+	}
+	
+	private Set<String> getAgentCarrierCodes(String login, String password) {
+		return manager.getAgentCarriers(getLogin(login), getPassword(password))
+				.stream().map(a -> a.getCarrier().getCode()).collect(Collectors.toSet());
+	}
+	
 	@GetMapping("/carriers")
 	public List<Carrier> getCarriers() {
 		return manager.getCarriers();
@@ -106,7 +154,7 @@ public class ScheduleController {
 	}
 	
 	@GetMapping("/schedule")
-	public ScheduleResponse getSchedule() {
+	public ScheduleResponse getSchedule(@RequestParam(required = false) String login, @RequestParam(required = false) String password) {
 		
 		// выгружаем словари
 		Map<String, Locality> localities = getMappedLocalities();
@@ -114,6 +162,8 @@ public class ScheduleController {
 		Map<String, Carrier> carriers = getMappedCarriers();
 		Map<String, Insurance> insurances = getMappedInsurances();
 		Map<String, List<RouteBlock>> blocks = getMappedRouteBlocks();
+		Set<Integer> routeBlockIds = getBlockedRouteIds(login, password);
+		Set<String> carrierCodes = getAgentCarrierCodes(login, password);
 		
 		ScheduleResponse schedule = new ScheduleResponse();
 		schedule.setId(UUID.randomUUID().toString());
@@ -134,6 +184,12 @@ public class ScheduleController {
 		List<Route> routes = getRoutes();
 		for (Route route : routes) {
 			
+			// проверяем блокировку маршрута и доступность перевозчика
+			if (routeBlockIds.contains(route.getId())
+					|| (!carrierCodes.isEmpty()
+							&& !carrierCodes.contains(route.getCarrierCode()))) {
+				continue;
+			}
 			// добавляем организации
 			addOrganisation(organisations, carriers, null, route.getCarrierCode());
 			addOrganisation(organisations, null, insurances, route.getInsuranceCode());
@@ -322,8 +378,11 @@ public class ScheduleController {
 	}
 	
 	@GetMapping("/trips")
-	public Map<Integer, List<String>> getAvailableTrips() {
+	public Map<Integer, List<String>> getAvailableTrips(@RequestParam(required = false) String login,
+			@RequestParam(required = false) String password) {
 		Map<String, List<RouteBlock>> blocks = getMappedRouteBlocks();
+		Set<Integer> routeBlockIds = getBlockedRouteIds(login, password);
+		Set<String> carrierCodes = getAgentCarrierCodes(login, password);
 		List<Trip> trips = manager.getAvailableTrips();
 		
 		// добавляем маршруты к рейсам
@@ -336,11 +395,19 @@ public class ScheduleController {
 		for (Iterator<Trip> iterator = trips.iterator(); iterator.hasNext();) {
 			Trip trip = iterator.next();
 			
-			// проверяем блокировку рейса
-			List<RouteBlock> reouteBlocks = blocks.get(String.valueOf(trip.getRouteId()));
-			setIndexToBlocks(getRoutePathMap(pathMap.get(trip.getRouteId())), reouteBlocks);
-			if (isAllRouteBlocked(pathMap.get(trip.getRouteId()), reouteBlocks)) {
+			// проверяем блокировку маршрута и доступность перевозчика
+			if (routeBlockIds.contains(trip.getRouteId())
+					|| (!carrierCodes.isEmpty()
+							&& !carrierCodes.contains(trip.getCarrierCode()))) {
 				iterator.remove();
+			} else {
+			
+				// проверяем блокировку рейса
+				List<RouteBlock> reouteBlocks = blocks.get(String.valueOf(trip.getRouteId()));
+				setIndexToBlocks(getRoutePathMap(pathMap.get(trip.getRouteId())), reouteBlocks);
+				if (isAllRouteBlocked(pathMap.get(trip.getRouteId()), reouteBlocks)) {
+					iterator.remove();
+				}
 			}
 		}
 		return trips.stream().collect(
@@ -399,14 +466,23 @@ public class ScheduleController {
 	}
 	
 	@GetMapping("/seats_by_trip/{date}")
-	public Map<Integer, Map<String, Integer>> getSeatsByTrip(@Validated @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") Date date) {
+	public Map<Integer, Map<String, Integer>> getSeatsByTrip(@Validated @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") Date date,
+			@RequestParam(required = false) String login, @RequestParam(required = false) String password) {
 		Map<String, List<RouteBlock>> blocks = getMappedRouteBlocks();
+		Set<Integer> routeBlockIds = getBlockedRouteIds(login, password);
+		Set<String> carrierCodes = getAgentCarrierCodes(login, password);
 		List<Trip> trips = manager.getPathByTrip(date);
 		
 		// рейс -> сегмент -> количество мест
 		Map<Integer, Map<String, Integer>> seats = new HashMap<>();
 		for (Trip trip : trips) {
 			
+			// проверяем блокировку маршрута и доступность перевозчика
+			if (routeBlockIds.contains(trip.getRouteId())
+					|| (!carrierCodes.isEmpty()
+							&& !carrierCodes.contains(trip.getCarrierCode()))) {
+				continue;
+			}
 			// проверяем блокировку рейса
 			List<RouteBlock> reouteBlocks = blocks.get(String.valueOf(trip.getRouteId()));
 			setIndexToBlocks(getTripPathMap(trip.getPath()), reouteBlocks);

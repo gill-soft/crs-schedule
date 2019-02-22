@@ -10,12 +10,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.gillsoft.entity.AgentCarrier;
 import com.gillsoft.entity.Carrier;
 import com.gillsoft.entity.Insurance;
 import com.gillsoft.entity.Locality;
 import com.gillsoft.entity.PathPoint;
 import com.gillsoft.entity.Point;
 import com.gillsoft.entity.Route;
+import com.gillsoft.entity.RouteAgentBlock;
 import com.gillsoft.entity.RouteBlock;
 import com.gillsoft.entity.Trip;
 
@@ -171,6 +173,29 @@ public class ScheduleManager {
 	public List<RouteBlock> getRouteBlocks()  {
 		return sessionFactory.getCurrentSession().createQuery(
 				"from RouteBlock", RouteBlock.class).getResultList();
+	}
+	
+	@Transactional(readOnly = true)
+	public List<RouteAgentBlock> getRouteAgentBlocks(String login, String password)  {
+		return sessionFactory.getCurrentSession().createQuery(
+				"select rab from RouteAgentBlock as rab "
+				+ "join User as u with u.agentId = rab.agentId "
+				+ "where u.login = :login "
+				+ "and u.password = :pass", RouteAgentBlock.class)
+				.setParameter("login", login)
+				.setParameter("pass", password).getResultList();
+	}
+	
+	@Transactional(readOnly = true)
+	public List<AgentCarrier> getAgentCarriers(String login, String password)  {
+		return sessionFactory.getCurrentSession().createQuery(
+				"select ac from AgentCarrier as ac "
+				+ "join fetch ac.carrier "
+				+ "join User as u with u.agentId = ac.agentId "
+				+ "where u.login = :login "
+				+ "and u.password = :pass", AgentCarrier.class)
+				.setParameter("login", login)
+				.setParameter("pass", password).getResultList();
 	}
 
 }

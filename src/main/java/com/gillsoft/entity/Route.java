@@ -103,6 +103,10 @@ public class Route implements Serializable {
 	@OneToMany(fetch = FetchType.LAZY)
 	@JoinColumn(name = "route_id")
 	private Set<Tariff> tariffs;
+	
+	@OneToMany(fetch = FetchType.LAZY)
+	@JoinColumn(name = "route_id")
+	private Set<RouteAgentBlock> agentBlocks;
 
 	public int getId() {
 		return id;
@@ -296,6 +300,14 @@ public class Route implements Serializable {
 		this.tariffs = tariffs;
 	}
 	
+	public Set<RouteAgentBlock> getAgentBlocks() {
+		return agentBlocks;
+	}
+
+	public void setAgentBlocks(Set<RouteAgentBlock> agentBlocks) {
+		this.agentBlocks = agentBlocks;
+	}
+
 	public ScheduleRoute create() {
 		ScheduleRoute scheduleRoute = new ScheduleRoute();
 		scheduleRoute.setId(String.valueOf(getId()));

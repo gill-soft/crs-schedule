@@ -2,6 +2,7 @@ package com.gillsoft;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -241,12 +242,12 @@ public class ScheduleController {
 				ScheduleRoutePoint point = (ScheduleRoutePoint) scheduleRoute.getPath().get(i);
 				
 				// проверяем можно ли продавать из это пункта
-				if (!isDisabledArrivals(point.getIndex(), reouteBlocks)) {
+				if (!isDisabledArrivals(null, point.getIndex(), reouteBlocks)) {
 					for (int j = i + 1; j < scheduleRoute.getPath().size(); j++) {
 						ScheduleRoutePoint destination = (ScheduleRoutePoint) scheduleRoute.getPath().get(j);
 						
 						// прверяем можно ли продавать в этот пункт
-						if (!isDisabledArrival(point.getIndex(), destination.getIndex(), reouteBlocks)) {
+						if (!isDisabledArrival(null, point.getIndex(), destination.getIndex(), reouteBlocks)) {
 							RoutePathTariff tariff = tariffs.get(point.getId() + ";" + destination.getId());
 							if (tariff != null) {
 								ScheduleRoutePoint pricePoint = new ScheduleRoutePoint();
@@ -322,11 +323,11 @@ public class ScheduleController {
 		}
 	}
 	
-	private boolean isDisabledArrival(int pointIndex, int destIndex, List<RouteBlock> blocks) {
+	private boolean isDisabledArrival(Date date, int pointIndex, int destIndex, List<RouteBlock> blocks) {
 		if (blocks == null) {
 			return false;
 		}
-		long curr = System.currentTimeMillis();
+		long curr = date == null ? System.currentTimeMillis() : date.getTime();
 		
 		// если блокировка по отправлению пуста или ид отправления в нее попадает, то заблокировано прибытие
 		return blocks.stream().anyMatch(routeBlock ->
@@ -338,11 +339,11 @@ public class ScheduleController {
 				&& checkDate(curr, routeBlock));
 	}
 	
-	private boolean isDisabledArrivals(int pointIndex, List<RouteBlock> blocks) {
+	private boolean isDisabledArrivals(Date date, int pointIndex, List<RouteBlock> blocks) {
 		if (blocks == null) {
 			return false;
 		}
-		long curr = System.currentTimeMillis();
+		long curr = date == null ? System.currentTimeMillis() : date.getTime();
 		
 		// если есть блокировка по отправлению и нет блокировки по прибытию,
 		// то значит запрещено продавать из пункта
@@ -405,7 +406,7 @@ public class ScheduleController {
 				// проверяем блокировку рейса
 				List<RouteBlock> reouteBlocks = blocks.get(String.valueOf(trip.getRouteId()));
 				setIndexToBlocks(getRoutePathMap(pathMap.get(trip.getRouteId())), reouteBlocks);
-				if (isAllRouteBlocked(pathMap.get(trip.getRouteId()), reouteBlocks)) {
+				if (isAllRouteBlocked(trip.getExecution(), pathMap.get(trip.getRouteId()), reouteBlocks)) {
 					iterator.remove();
 				}
 			}
@@ -419,12 +420,21 @@ public class ScheduleController {
 		return path.stream().collect(Collectors.toMap(p -> String.valueOf(p.getId()), p -> (int) p.getIndex()));
 	}
 	
-	private boolean isAllRouteBlocked(List<PathPoint> routePath, List<RouteBlock> reouteBlocks) {
+	private boolean isAllRouteBlocked(Date date, List<PathPoint> routePath, List<RouteBlock> reouteBlocks) {
 		Collections.sort(routePath, (r1, r2) -> r1.getIndex() > r2.getIndex() ? 1 : -1);
 		for (int i = 0; i < routePath.size(); i++) {
-			if (!isDisabledArrivals(routePath.get(i).getIndex(), reouteBlocks)) {
+			
+			// проверяем сдвиг по маршруту
+			Date calculated = null;
+			if (date != null) {
+				Calendar c = Calendar.getInstance();
+				c.setTime(date);
+				c.add(Calendar.DATE, routePath.get(i).getDepartDay());
+				calculated = c.getTime();
+			}
+			if (!isDisabledArrivals(calculated, routePath.get(i).getIndex(), reouteBlocks)) {
 				for (int j = i + 1; j < routePath.size(); j++) {
-					if (!isDisabledArrival(routePath.get(i).getIndex(), routePath.get(j).getIndex(), reouteBlocks)) {
+					if (!isDisabledArrival(calculated, routePath.get(i).getIndex(), routePath.get(j).getIndex(), reouteBlocks)) {
 						return false;
 					}
 				}
@@ -556,9 +566,9 @@ public class ScheduleController {
 	
 	private boolean isAllBlocked(List<TripPath> tripPath, List<RouteBlock> reouteBlocks) {
 		for (int i = 0; i < tripPath.size(); i++) {
-			if (!isDisabledArrivals(tripPath.get(i).getIndex(), reouteBlocks)) {
+			if (!isDisabledArrivals(tripPath.get(i).getDeparture(), tripPath.get(i).getIndex(), reouteBlocks)) {
 				for (int j = i + 1; j < tripPath.size(); j++) {
-					if (!isDisabledArrival(tripPath.get(i).getIndex(), tripPath.get(j).getIndex(), reouteBlocks)) {
+					if (!isDisabledArrival(tripPath.get(i).getDeparture(), tripPath.get(i).getIndex(), tripPath.get(j).getIndex(), reouteBlocks)) {
 						return false;
 					}
 				}

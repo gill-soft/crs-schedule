@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gillsoft.model.Regularity;
 
 @Entity
 @Table(name = "route_path_blocked")
@@ -54,6 +55,7 @@ public class RouteBlock implements Serializable {
 	@Temporal(TemporalType.DATE)
 	private Date endedAt;
 	
+	@JsonIgnore
 	private String regularity;
 	
 	@Column(name = "regularity_days", nullable = true)
@@ -61,15 +63,19 @@ public class RouteBlock implements Serializable {
 	private String jsonRegularityDays;
 	
 	@Transient
+	@JsonIgnore
 	private Integer departFromIndex;
 	
 	@Transient
+	@JsonIgnore
 	private Integer departToIndex;
 	
 	@Transient
+	@JsonIgnore
 	private Integer arriveFromIndex;
 	
 	@Transient
+	@JsonIgnore
 	private Integer arriveToIndex;
 
 	public int getId() {
@@ -138,6 +144,11 @@ public class RouteBlock implements Serializable {
 
 	public String getRegularity() {
 		return regularity;
+	}
+	
+	@JsonProperty("regularity")
+	public Regularity getRegularityValue() {
+		return Regularity.valueOf(getRegularity().replaceAll(" ", "_").toUpperCase());
 	}
 
 	public void setRegularity(String regularity) {

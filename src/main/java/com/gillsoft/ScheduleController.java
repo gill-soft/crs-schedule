@@ -1,5 +1,6 @@
 package com.gillsoft;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gillsoft.entity.AgentCarrier;
 import com.gillsoft.entity.Carrier;
 import com.gillsoft.entity.Insurance;
@@ -387,11 +389,6 @@ public class ScheduleController {
 		}
 	}
 	
-	public static void main(String[] args) {
-		Calendar c = Calendar.getInstance();
-		System.out.println(c.getFirstDayOfWeek());
-	}
-	
 	private void addOrganisation(Map<String, Organisation> orgaisations, Map<String, Carrier> carriers,
 			Map<String, Insurance> insurances, String code) {
 		if (!orgaisations.containsKey(code)) {
@@ -632,6 +629,17 @@ public class ScheduleController {
 		return seats.entrySet().stream()
 				.filter(seat -> "enable".equals(seat.getValue()))
 				.map(seat -> seat.getKey()).collect(Collectors.toSet());
+	}
+	
+	public static void main(String[] args) throws IOException {
+		System.out.println(getJsonSchema(RouteBlock.class));
+	}
+	
+	@SuppressWarnings("deprecation")
+	private static String getJsonSchema(Class<?> clazz) throws IOException {
+	    ObjectMapper mapper = new ObjectMapper();
+	    com.fasterxml.jackson.databind.jsonschema.JsonSchema schema = mapper.generateJsonSchema(clazz);
+	    return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(schema);
 	}
 	
 }

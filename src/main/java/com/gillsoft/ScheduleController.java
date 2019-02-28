@@ -11,7 +11,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -44,6 +43,7 @@ import com.gillsoft.entity.TripPath;
 import com.gillsoft.manager.ScheduleManager;
 import com.gillsoft.model.Organisation;
 import com.gillsoft.model.Price;
+import com.gillsoft.model.Regularity;
 import com.gillsoft.model.RoutePoint;
 import com.gillsoft.model.ScheduleRoute;
 import com.gillsoft.model.ScheduleRoutePoint;
@@ -336,7 +336,7 @@ public class ScheduleController {
 						&& (routeBlock.getDepartToIndex() == null || routeBlock.getDepartToIndex() >= pointIndex)))
 				&& ((routeBlock.getArriveFromIndex() == null || routeBlock.getArriveFromIndex() <= destIndex)
 						&& (routeBlock.getArriveToIndex() == null || routeBlock.getArriveToIndex() >= destIndex))
-				&& checkDate(curr, routeBlock));
+				&& checkDate(curr, routeBlock, date != null));
 	}
 	
 	private boolean isDisabledArrivals(Date date, int pointIndex, List<RouteBlock> blocks) {
@@ -352,13 +352,44 @@ public class ScheduleController {
 					&& (routeBlock.getDepartToIndex() == null || routeBlock.getDepartToIndex() >= pointIndex))
 					&& routeBlock.getArriveFromIndex() == null
 					&& routeBlock.getArriveToIndex() == null
-					&& checkDate(curr, routeBlock));
+					&& checkDate(curr, routeBlock, date != null));
 	}
 	
-	private boolean checkDate(long curr, RouteBlock routeBlock) {
+	private boolean checkDate(long curr, RouteBlock routeBlock, boolean checkRegularity) {
 		return (routeBlock.getStartedAt() == null || routeBlock.getStartedAt().getTime() <= curr)
 				&& (routeBlock.getEndedAt() == null || routeBlock.getEndedAt().getTime() >= curr)
-				&& Objects.equals(routeBlock.getRegularity(), "every day");
+				&& checkRegularity(curr, routeBlock, checkRegularity);
+	}
+	
+	private boolean checkRegularity(long curr, RouteBlock routeBlock, boolean checkRegularity) {
+		Calendar c = Calendar.getInstance();
+		c.setTimeInMillis(curr);
+		int currDay = c.get(Calendar.DAY_OF_WEEK) - 1;
+		Regularity reg = Regularity.valueOf(routeBlock.getRegularity().replaceAll(" ", "_").toUpperCase());
+		if (!checkRegularity) {
+			return reg == Regularity.EVERY_DAY;
+		}
+		switch (reg) {
+		case EVERY_DAY:
+			return true;
+		case DAY_BY_DAY:
+			Calendar start = Calendar.getInstance();
+			start.setTime(routeBlock.getStartedAt());
+			return (c.get(Calendar.DATE) - start.get(Calendar.DATE)) % 2 == 0;
+		case DAYS_OF_THE_WEEK:
+			return routeBlock.getRegularityDays().contains(currDay);
+		case EVEN_DAY:
+			return c.get(Calendar.DATE) % 2 == 0;
+		case ODD_DAY:
+			return c.get(Calendar.DATE) % 2 != 0;
+		default:
+			return true;
+		}
+	}
+	
+	public static void main(String[] args) {
+		Calendar c = Calendar.getInstance();
+		System.out.println(c.getFirstDayOfWeek());
 	}
 	
 	private void addOrganisation(Map<String, Organisation> orgaisations, Map<String, Carrier> carriers,
@@ -445,9 +476,25 @@ public class ScheduleController {
 	
 	@GetMapping("/seats/{date}")
 	public Map<Integer, List<SegmentSeats>> getSeats(@Validated @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") Date date) {
+		Map<String, List<RouteBlock>> blocks = getMappedRouteBlocks();
+		Set<Integer> routeBlockIds = getBlockedRouteIds(login, password);
+		Set<String> carrierCodes = getAgentCarrierCodes(login, password);
 		List<Trip> trips = manager.getPath(date);
 		Map<Integer, List<SegmentSeats>> seats = new HashMap<>();
 		for (Trip trip : trips) {
+			
+			// проверяем блокировку маршрута и доступность перевозчика
+			if (routeBlockIds.contains(trip.getRouteId())
+					|| (!carrierCodes.isEmpty()
+							&& !carrierCodes.contains(trip.getCarrierCode()))) {
+				continue;
+			}
+			// проверяем блокировку рейса
+			List<RouteBlock> reouteBlocks = blocks.get(String.valueOf(trip.getRouteId()));
+			setIndexToBlocks(getTripPathMap(trip.getPath()), reouteBlocks);
+			if (isAllBlocked(trip.getPath(), reouteBlocks)) {
+				continue;
+			}
 			List<SegmentSeats> tripSeats = seats.get(trip.getRouteId());
 			if (tripSeats == null) {
 				tripSeats = new ArrayList<>();
@@ -458,13 +505,17 @@ public class ScheduleController {
 				if (from.getDeparture().getTime() > date.getTime()) {
 					break;
 				}
-				Set<String> fromSeats = getEnabledSeats(from.getSeats());
-				for (int j = i + 1; j < trip.getPath().size(); j++) {
-					TripPath to = trip.getPath().get(j);
-					fromSeats.retainAll(getEnabledSeats(to.getSeats()));
-					Set<String> fromToSeats = new HashSet<>();
-					fromToSeats.addAll(fromSeats);
-					tripSeats.add(new SegmentSeats(from.createLocality(), to.createLocality(), fromToSeats.size()));
+				if (!isDisabledArrivals(date, from.getIndex(), reouteBlocks)) {
+					Set<String> fromSeats = getEnabledSeats(from.getSeats());
+					for (int j = i + 1; j < trip.getPath().size(); j++) {
+						TripPath to = trip.getPath().get(j);
+						if (!isDisabledArrival(date, from.getIndex(), to.getIndex(), reouteBlocks)) {
+							fromSeats.retainAll(getEnabledSeats(to.getSeats()));
+							Set<String> fromToSeats = new HashSet<>();
+							fromToSeats.addAll(fromSeats);
+							tripSeats.add(new SegmentSeats(from.createLocality(), to.createLocality(), fromToSeats.size()));
+						}
+					}
 				}
 			}
 		}

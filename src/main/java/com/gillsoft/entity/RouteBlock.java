@@ -1,7 +1,9 @@
 package com.gillsoft.entity;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Date;
+import java.util.Set;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -11,13 +13,22 @@ import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.persistence.Transient;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 @Entity
 @Table(name = "route_path_blocked")
+@JsonInclude(Include.NON_NULL)
 public class RouteBlock implements Serializable {
 
 	private static final long serialVersionUID = -7548286462034120071L;
 	
 	@Id
+	@JsonIgnore
 	private int id;
 	
 	@Column(name = "route_id")
@@ -46,6 +57,7 @@ public class RouteBlock implements Serializable {
 	private String regularity;
 	
 	@Column(name = "regularity_days", nullable = true)
+	@JsonIgnore
 	private String jsonRegularityDays;
 	
 	@Transient
@@ -134,6 +146,18 @@ public class RouteBlock implements Serializable {
 
 	public String getJsonRegularityDays() {
 		return jsonRegularityDays;
+	}
+	
+	@JsonProperty("regularityDays")
+	public Set<Integer> getRegularityDays() {
+		if (jsonRegularityDays == null) {
+			return null;
+		}
+		try {
+			return new ObjectMapper().readValue(jsonRegularityDays, new TypeReference<Set<Integer>>() {});
+		} catch (IOException e) {
+			return null;
+		}
 	}
 
 	public void setJsonRegularityDays(String jsonRegularityDays) {

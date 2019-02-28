@@ -338,7 +338,7 @@ public class ScheduleController {
 						&& (routeBlock.getDepartToIndex() == null || routeBlock.getDepartToIndex() >= pointIndex)))
 				&& ((routeBlock.getArriveFromIndex() == null || routeBlock.getArriveFromIndex() <= destIndex)
 						&& (routeBlock.getArriveToIndex() == null || routeBlock.getArriveToIndex() >= destIndex))
-				&& checkDate(curr, routeBlock, date != null));
+				&& (date == null || checkDate(curr, routeBlock)));
 	}
 	
 	private boolean isDisabledArrivals(Date date, int pointIndex, List<RouteBlock> blocks) {
@@ -354,23 +354,20 @@ public class ScheduleController {
 					&& (routeBlock.getDepartToIndex() == null || routeBlock.getDepartToIndex() >= pointIndex))
 					&& routeBlock.getArriveFromIndex() == null
 					&& routeBlock.getArriveToIndex() == null
-					&& checkDate(curr, routeBlock, date != null));
+					&& (date == null || checkDate(curr, routeBlock)));
 	}
 	
-	private boolean checkDate(long curr, RouteBlock routeBlock, boolean checkRegularity) {
+	private boolean checkDate(long curr, RouteBlock routeBlock) {
 		return (routeBlock.getStartedAt() == null || routeBlock.getStartedAt().getTime() <= curr)
 				&& (routeBlock.getEndedAt() == null || routeBlock.getEndedAt().getTime() >= curr)
-				&& checkRegularity(curr, routeBlock, checkRegularity);
+				&& checkRegularity(curr, routeBlock);
 	}
 	
-	private boolean checkRegularity(long curr, RouteBlock routeBlock, boolean checkRegularity) {
+	private boolean checkRegularity(long curr, RouteBlock routeBlock) {
 		Calendar c = Calendar.getInstance();
 		c.setTimeInMillis(curr);
 		int currDay = c.get(Calendar.DAY_OF_WEEK) - 1;
 		Regularity reg = Regularity.valueOf(routeBlock.getRegularity().replaceAll(" ", "_").toUpperCase());
-		if (!checkRegularity) {
-			return reg == Regularity.EVERY_DAY;
-		}
 		switch (reg) {
 		case EVERY_DAY:
 			return true;

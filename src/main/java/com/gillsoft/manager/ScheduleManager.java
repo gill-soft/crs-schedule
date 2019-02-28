@@ -172,7 +172,9 @@ public class ScheduleManager {
 	@Transactional(readOnly = true)
 	public List<RouteBlock> getRouteBlocks()  {
 		return sessionFactory.getCurrentSession().createQuery(
-				"from RouteBlock", RouteBlock.class).getResultList();
+				"from RouteBlock as r "
+				+ "where r.endedAt is null or :curr <= r.endedAt",
+				RouteBlock.class).setParameter("curr", new Date()).getResultList();
 	}
 	
 	@Transactional(readOnly = true)

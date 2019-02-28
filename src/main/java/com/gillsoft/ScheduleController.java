@@ -209,25 +209,9 @@ public class ScheduleController {
 			ScheduleRoute scheduleRoute = route.create();
 			List<ScheduleRoutePoint> path = new ArrayList<>();
 			
-			// добавляем остановки на саршруте
+			// добавляем остановки на маршруте
 			for (PathPoint pathPoint : route.getPath()) {
-				ScheduleRoutePoint routePoint = pathPoint.create();
-				
-				// добавляем в расписание используемые города (parent) и остановки (locality)
-				if (routePoint.getLocality().getParent() != null
-						&& !resParents.containsKey(routePoint.getLocality().getParent().getId())) {
-					Locality locality = localities.get(routePoint.getLocality().getParent().getId());
-					if (locality != null) {
-						resParents.put(routePoint.getLocality().getParent().getId(), locality.create());
-					}
-				}
-				if (!resLocalities.containsKey(routePoint.getLocality().getId())) {
-					Point point = points.get(routePoint.getLocality().getId());
-					if (point != null) {
-						resLocalities.put(routePoint.getLocality().getId(), point.create());
-					}
-				}
-				path.add(routePoint);
+				path.add(pathPoint.create());
 			}
 			scheduleRoute.setPath(path);
 			
@@ -269,6 +253,24 @@ public class ScheduleController {
 				}
 			}
 			if (isPresentPrices) {
+				
+				
+				// добавляем в расписание используемые города (parent) и остановки (locality)
+				for (RoutePoint routePoint : scheduleRoute.getPath()) {
+					if (routePoint.getLocality().getParent() != null
+							&& !resParents.containsKey(routePoint.getLocality().getParent().getId())) {
+						Locality locality = localities.get(routePoint.getLocality().getParent().getId());
+						if (locality != null) {
+							resParents.put(routePoint.getLocality().getParent().getId(), locality.create());
+						}
+					}
+					if (!resLocalities.containsKey(routePoint.getLocality().getId())) {
+						Point point = points.get(routePoint.getLocality().getId());
+						if (point != null) {
+							resLocalities.put(routePoint.getLocality().getId(), point.create());
+						}
+					}
+				}
 				schedule.getRoutes().add(scheduleRoute);
 			}
 		}

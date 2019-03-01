@@ -211,12 +211,27 @@ public class ScheduleController {
 			
 			// добавляем остановки на маршруте
 			for (PathPoint pathPoint : route.getPath()) {
-				path.add(pathPoint.create());
+				ScheduleRoutePoint routePoint = pathPoint.create();
+				
+				// добавляем в расписание используемые города (parent) и остановки (locality)
+				if (routePoint.getLocality().getParent() != null
+						&& !resParents.containsKey(routePoint.getLocality().getParent().getId())) {
+					Locality locality = localities.get(routePoint.getLocality().getParent().getId());
+					if (locality != null) {
+						resParents.put(routePoint.getLocality().getParent().getId(), locality.create());
+					}
+				}
+				if (!resLocalities.containsKey(routePoint.getLocality().getId())) {
+					Point point = points.get(routePoint.getLocality().getId());
+					if (point != null) {
+						resLocalities.put(routePoint.getLocality().getId(), point.create());
+					}
+				}
+				path.add(routePoint);
 			}
 			scheduleRoute.setPath(path);
 			
 			// делаем тарифную сетку
-			boolean isPresentPrices = false;
 			Tariff currTariff = getCurrTariff(route.getTariffs());
 			Map<String, RoutePathTariff> tariffs = currTariff == null ? new HashMap<>(0) : currTariff
 					.getGrids().iterator().next()
@@ -246,33 +261,12 @@ public class ScheduleController {
 									point.setDestinations(new ArrayList<>());
 								}
 								point.getDestinations().add(pricePoint);
-								isPresentPrices = true;
 							}
 						}
 					}
 				}
 			}
-			if (isPresentPrices) {
-				
-				
-				// добавляем в расписание используемые города (parent) и остановки (locality)
-				for (RoutePoint routePoint : scheduleRoute.getPath()) {
-					if (routePoint.getLocality().getParent() != null
-							&& !resParents.containsKey(routePoint.getLocality().getParent().getId())) {
-						Locality locality = localities.get(routePoint.getLocality().getParent().getId());
-						if (locality != null) {
-							resParents.put(routePoint.getLocality().getParent().getId(), locality.create());
-						}
-					}
-					if (!resLocalities.containsKey(routePoint.getLocality().getId())) {
-						Point point = points.get(routePoint.getLocality().getId());
-						if (point != null) {
-							resLocalities.put(routePoint.getLocality().getId(), point.create());
-						}
-					}
-				}
-				schedule.getRoutes().add(scheduleRoute);
-			}
+			schedule.getRoutes().add(scheduleRoute);
 		}
 		return schedule;
 	}

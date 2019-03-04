@@ -127,19 +127,19 @@ public class ScheduleManager {
 				+ "join rt.grids as rtg "
 				+ "where t.available = true "
 				+ "and t.deletedAt is null "
-				+ "and t.execution <= :curr "
+				+ "and t.execution <= :date "
 				+ "and tp.jsonSeats is not null "
-				+ "and tp.departure >= :curr "
+				+ "and tp.departure >= :date "
 				+ "and r.deletedAt is null "
 				+ "and r.available = true "
 				+ "and r.test = false "
-				+ "and (r.endedAt is null or :curr <= r.endedAt) "
+				+ "and (r.endedAt is null or :date <= r.endedAt) "
 				+ "and rt.type = 'base' "
 				+ "and rt.status = 1 "
 				+ "and rt.kind = 'default' "
-				+ "and (rt.endedAt is null or :curr <= rt.endedAt) "
+				+ "and (rt.endedAt is null or :date <= rt.endedAt) "
 				+ "and rtg.currency = 'UAH'",
-				Trip.class).setParameter("curr", date).setFetchSize(1000)
+				Trip.class).setParameter("date", date).setFetchSize(1000)
 				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).getResultList();
 	}
 	
@@ -154,21 +154,22 @@ public class ScheduleManager {
 				+ "join rt.grids as rtg "
 				+ "where t.available = true "
 				+ "and t.deletedAt is null "
-				+ "and t.execution = :curr "
+				+ "and t.execution = :date "
 				+ "and tp.jsonSeats is not null "
+				+ "and extract(epoch from ((tp.departure + tp.departureTime) - current_timestamp)) / 3600 > r.saleCloseBefore "
 				+ "and r.deletedAt is null "
 				+ "and r.available = true "
 				+ "and r.test = false "
-				+ "and (r.endedAt is null or :curr <= r.endedAt) "
+				+ "and (r.endedAt is null or :date <= r.endedAt) "
 				+ "and rt.type = 'base' "
 				+ "and rt.status = 1 "
 				+ "and rt.kind = 'default' "
-				+ "and (rt.endedAt is null or :curr <= rt.endedAt) "
+				+ "and (rt.endedAt is null or :date <= rt.endedAt) "
 				+ "and rtg.currency = 'UAH'",
-				Trip.class).setParameter("curr", date).setFetchSize(1000)
+				Trip.class).setParameter("date", date).setFetchSize(1000)
 				.setResultTransformer(Criteria.DISTINCT_ROOT_ENTITY).getResultList();
 	}
-	
+
 	@Transactional(readOnly = true)
 	public List<RouteBlock> getRouteBlocks()  {
 		return sessionFactory.getCurrentSession().createQuery(

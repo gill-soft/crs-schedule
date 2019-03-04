@@ -21,7 +21,7 @@ import com.gillsoft.model.Locality;
 @Table(name = "trip_path")
 public class TripPath implements Serializable {
 	
-	private static final long serialVersionUID = -2940712800468028004L;
+	private static final long serialVersionUID = -5013074596211467887L;
 
 	@Id
 	private int id;
@@ -40,6 +40,10 @@ public class TripPath implements Serializable {
 	@Column(name = "depart_date")
 	@Temporal(TemporalType.DATE)
 	private Date departure;
+	
+	@Column(name = "depart_time")
+	@Temporal(TemporalType.TIME)
+	private Date departureTime;
 	
 	@Column(name = "seats", columnDefinition = "jsonb")
 	@JsonIgnore
@@ -99,6 +103,14 @@ public class TripPath implements Serializable {
 
 	public void setDeparture(Date departure) {
 		this.departure = departure;
+	}
+
+	public Date getDepartureTime() {
+		return departureTime;
+	}
+
+	public void setDepartureTime(Date departureTime) {
+		this.departureTime = departureTime;
 	}
 
 	public String getJsonSeats() {

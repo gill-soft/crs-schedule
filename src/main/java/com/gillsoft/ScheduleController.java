@@ -372,6 +372,9 @@ public class ScheduleController {
 			start.setTime(routeBlock.getStartedAt());
 			return (c.get(Calendar.DATE) - start.get(Calendar.DATE)) % 2 == 0;
 		case DAYS_OF_THE_WEEK:
+			if (routeBlock.getRegularityDays() == null) {
+				return true;
+			}
 			return routeBlock.getRegularityDays().contains(currDay);
 		case EVEN_DAY:
 			return c.get(Calendar.DATE) % 2 == 0;

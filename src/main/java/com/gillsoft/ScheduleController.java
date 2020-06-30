@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.core.util.datetime.FastDateFormat;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -29,6 +30,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gillsoft.cache.CacheHandler;
+import com.gillsoft.cache.IOCacheException;
+import com.gillsoft.cache.MemoryCacheHandler;
 import com.gillsoft.entity.AgentCarrier;
 import com.gillsoft.entity.Carrier;
 import com.gillsoft.entity.Insurance;
@@ -69,6 +73,42 @@ public class ScheduleController {
 	@Value("${user.default.password}")
 	private String password;
 	
+	@Autowired
+	@Qualifier("MemoryCacheHandler")
+	public CacheHandler cache;
+	
+	protected Object getFromCache(String cacheKey, CacheObjectGetter objectGetter, long updateDelay) {
+		
+		// берем результат с кэша, если кэша нет, то берем напрямую с сервиса
+		Map<String, Object> params = new HashMap<>();
+		params.put(MemoryCacheHandler.OBJECT_NAME, cacheKey);
+		try {
+			Object object = cache.read(params);
+			if (object == null) {
+				
+				// синхронизация по ключу кэша
+				synchronized (cacheKey.intern()) {
+					object = cache.read(params);
+					if (object == null) {
+						object = objectGetter.forCache();
+						params.put(MemoryCacheHandler.IGNORE_AGE, true);
+						params.put(MemoryCacheHandler.UPDATE_DELAY, updateDelay);
+						params.put(MemoryCacheHandler.UPDATE_TASK, new DataObjectUpdateTask(cache, cacheKey, objectGetter));
+						try {
+							cache.write(object, params);
+						} catch (IOCacheException writeException) {
+						}
+					}
+					return object;
+				}
+			} else {
+				return object;
+			}
+		} catch (IOCacheException e) {
+			return null;
+		}
+	}
+	
 	private String getLogin(String login) {
 		if (login != null
 				&& !login.isEmpty()) {
@@ -85,75 +125,83 @@ public class ScheduleController {
 		return this.password;
 	}
 	
+	@SuppressWarnings("unchecked")
 	@GetMapping("/localities")
 	public List<Locality> getLocalities() {
-		return manager.getLocalities();
+		return (List<Locality>) getFromCache("localities", () -> manager.getLocalities(), 3600000l);
 	}
 	
 	private Map<String, Locality> getMappedLocalities() {
-		return manager.getLocalities().stream().collect(Collectors.toMap(locality -> String.valueOf(locality.getId()), locality -> locality));
+		return getLocalities().stream().collect(Collectors.toMap(locality -> String.valueOf(locality.getId()), locality -> locality));
 	}
 	
+	@SuppressWarnings("unchecked")
 	@GetMapping("/points")
 	public List<Point> getPoints() {
-		return manager.getPoints();
+		return (List<Point>) getFromCache("points", () -> manager.getPoints(), 3600000l);
 	}
 	
 	private Map<String, Point> getMappedPoints() {
-		return manager.getPoints().stream().collect(Collectors.toMap(point -> String.valueOf(point.getId()), point -> point));
+		return getPoints().stream().collect(Collectors.toMap(point -> String.valueOf(point.getId()), point -> point));
 	}
 	
+	@SuppressWarnings("unchecked")
 	@GetMapping("/routes")
 	public List<Route> getRoutes() {
-		return manager.getRoutes();
+		return (List<Route>) getFromCache("routes", () -> manager.getRoutes(), 3600000l);
 	}
 	
+	@SuppressWarnings("unchecked")
 	@GetMapping("/blocks")
 	public List<RouteBlock> getRouteBlocks() {
-		return manager.getRouteBlocks();
+		return (List<RouteBlock>) getFromCache("blocks", () -> manager.getRouteBlocks(), 3600000l);
 	}
 	
 	private Map<String, List<RouteBlock>> getMappedRouteBlocks() {
-		return manager.getRouteBlocks().stream().collect(Collectors.groupingBy(v -> String.valueOf(v.getRouteId()),
+		return getRouteBlocks().stream().collect(Collectors.groupingBy(v -> String.valueOf(v.getRouteId()),
 				Collectors.mapping(v -> v, Collectors.toList())));
 	}
 	
+	@SuppressWarnings("unchecked")
 	@GetMapping("/agent_blocks")
 	public List<RouteAgentBlock> getRouteAgentBlocks(@RequestParam(required = false) String login, @RequestParam(required = false) String password) {
-		return manager.getRouteAgentBlocks(getLogin(login), getPassword(password));
+		return (List<RouteAgentBlock>) getFromCache("agent_blocks", () -> manager.getRouteAgentBlocks(getLogin(login), getPassword(password)), 3600000l);
 	}
 	
 	private Set<Integer> getBlockedRouteIds(String login, String password) {
-		return manager.getRouteAgentBlocks(getLogin(login), getPassword(password))
+		return getRouteAgentBlocks(getLogin(login), getPassword(password))
 				.stream().map(RouteAgentBlock::getRouteId).collect(Collectors.toSet());
 	}
 	
+	@SuppressWarnings("unchecked")
 	@GetMapping("/agent_carriers")
 	public List<AgentCarrier> getAgentCarriers(@RequestParam(required = false) String login, @RequestParam(required = false) String password) {
-		return manager.getAgentCarriers(getLogin(login), getPassword(password));
+		return (List<AgentCarrier>) getFromCache("agent_carriers", () -> manager.getAgentCarriers(getLogin(login), getPassword(password)), 3600000l);
 	}
 	
 	private Set<String> getAgentCarrierCodes(String login, String password) {
-		return manager.getAgentCarriers(getLogin(login), getPassword(password))
+		return getAgentCarriers(getLogin(login), getPassword(password))
 				.stream().map(a -> a.getCarrier().getCode()).collect(Collectors.toSet());
 	}
 	
+	@SuppressWarnings("unchecked")
 	@GetMapping("/carriers")
 	public List<Carrier> getCarriers() {
-		return manager.getCarriers();
+		return (List<Carrier>) getFromCache("carriers", () -> manager.getCarriers(), 3600000l);
 	}
 	
 	private Map<String, Carrier> getMappedCarriers() {
-		return manager.getCarriers().stream().collect(Collectors.toMap(Carrier::getCode, carrier -> carrier));
+		return getCarriers().stream().collect(Collectors.toMap(Carrier::getCode, carrier -> carrier));
 	}
 	
+	@SuppressWarnings("unchecked")
 	@GetMapping("/insurances")
 	public List<Insurance> getInsurances() {
-		return manager.getInsurances();
+		return (List<Insurance>) getFromCache("insurances", () -> manager.getInsurances(), 3600000l);
 	}
 	
 	private Map<String, Insurance> getMappedInsurances() {
-		return manager.getInsurances().stream().collect(Collectors.toMap(Insurance::getCode, insurance -> insurance));
+		return getInsurances().stream().collect(Collectors.toMap(Insurance::getCode, insurance -> insurance));
 	}
 	
 	@GetMapping("/schedule")

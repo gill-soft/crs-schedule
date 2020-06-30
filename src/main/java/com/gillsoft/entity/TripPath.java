@@ -29,7 +29,7 @@ public class TripPath implements Serializable {
 	private short index;
 	
 	@Column(name = "geo_point_id")
-	private int geoPointId;
+	private Integer geoPointId;
 	
 	@Column(name = "geo_locality_id")
 	private int geoLocalityId;
@@ -65,11 +65,11 @@ public class TripPath implements Serializable {
 		this.index = index;
 	}
 
-	public int getGeoPointId() {
+	public Integer getGeoPointId() {
 		return geoPointId;
 	}
 
-	public void setGeoPointId(int geoPointId) {
+	public void setGeoPointId(Integer geoPointId) {
 		this.geoPointId = geoPointId;
 	}
 

@@ -165,7 +165,8 @@ public class ScheduleController {
 	@SuppressWarnings("unchecked")
 	@GetMapping("/agent_blocks")
 	public List<RouteAgentBlock> getRouteAgentBlocks(@RequestParam(required = false) String login, @RequestParam(required = false) String password) {
-		return (List<RouteAgentBlock>) getFromCache("agent_blocks", () -> manager.getRouteAgentBlocks(getLogin(login), getPassword(password)), 3600000l);
+		return (List<RouteAgentBlock>) getFromCache(String.join("_", "agent_blocks", login, password),
+				() -> manager.getRouteAgentBlocks(getLogin(login), getPassword(password)), 3600000l);
 	}
 	
 	private Set<Integer> getBlockedRouteIds(String login, String password) {
@@ -176,7 +177,8 @@ public class ScheduleController {
 	@SuppressWarnings("unchecked")
 	@GetMapping("/agent_carriers")
 	public List<AgentCarrier> getAgentCarriers(@RequestParam(required = false) String login, @RequestParam(required = false) String password) {
-		return (List<AgentCarrier>) getFromCache("agent_carriers", () -> manager.getAgentCarriers(getLogin(login), getPassword(password)), 3600000l);
+		return (List<AgentCarrier>) getFromCache(String.join("_", "agent_carriers", login, password),
+				() -> manager.getAgentCarriers(getLogin(login), getPassword(password)), 3600000l);
 	}
 	
 	private Set<String> getAgentCarrierCodes(String login, String password) {

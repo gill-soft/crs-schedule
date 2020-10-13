@@ -603,17 +603,21 @@ public class ScheduleController {
 			Map<String, List<int[]>> seatSegments = new HashMap<>();
 			for (int i = 0; i < trip.getPath().size() - 1; i++) {
 				TripPath from = trip.getPath().get(i);
-				Set<String> fromSeats = getEnabledSeats(from.getSeats());
-				
-				// создаем места с сегментами
-				for (String seat : fromSeats) {
-					TripPath to = trip.getPath().get(i + 1);
-					List<int[]> segments = seatSegments.get(seat);
-					if (segments == null) {
-						segments = new ArrayList<>();
-						seatSegments.put(seat, segments);
+				if (from.getGeoPointId() != null) {
+					Set<String> fromSeats = getEnabledSeats(from.getSeats());
+					
+					// создаем места с сегментами
+					for (String seat : fromSeats) {
+						TripPath to = trip.getPath().get(i + 1);
+						if (to.getGeoPointId() != null) {
+							List<int[]> segments = seatSegments.get(seat);
+							if (segments == null) {
+								segments = new ArrayList<>();
+								seatSegments.put(seat, segments);
+							}
+							segments.add(new int[] { from.getGeoPointId(), to.getGeoPointId() });
+						}
 					}
-					segments.add(new int[] { from.getGeoPointId(), to.getGeoPointId() });
 				}
 			}
 			// соединяем сегменты

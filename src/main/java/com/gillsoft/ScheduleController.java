@@ -384,7 +384,7 @@ public class ScheduleController {
 						&& (routeBlock.getDepartToIndex() == null || routeBlock.getDepartToIndex() >= pointIndex)))
 				&& ((routeBlock.getArriveFromIndex() == null || routeBlock.getArriveFromIndex() <= destIndex)
 						&& (routeBlock.getArriveToIndex() == null || routeBlock.getArriveToIndex() >= destIndex))
-				&& (date == null || checkDate(curr, routeBlock)));
+				&& checkDate(curr, routeBlock));
 	}
 	
 	private boolean isDisabledArrivals(Date date, int pointIndex, List<RouteBlock> blocks) {
@@ -400,7 +400,7 @@ public class ScheduleController {
 					&& (routeBlock.getDepartToIndex() == null || routeBlock.getDepartToIndex() >= pointIndex))
 					&& routeBlock.getArriveFromIndex() == null
 					&& routeBlock.getArriveToIndex() == null
-					&& (date == null || checkDate(curr, routeBlock)));
+					&& checkDate(curr, routeBlock));
 	}
 	
 	private boolean checkDate(long curr, RouteBlock routeBlock) {
